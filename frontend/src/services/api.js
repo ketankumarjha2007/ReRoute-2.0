@@ -85,16 +85,29 @@ export async function explainPlan(payload) {
 export const explainResult = explainPlan;
 
 export async function submitContact(payload) {
-  const res = await fetch(`${BASE_URL}/contact`, {
+  const accessKey = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY;
+
+  const formData = new FormData();
+
+  formData.append('access_key', accessKey);
+  formData.append('name', payload.name);
+  formData.append('email', payload.email);
+  formData.append('message', payload.message);
+  formData.append('subject', 'New ReRoute Contact Message');
+
+  const res = await fetch('https://api.web3forms.com/submit', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
+    body: formData
   });
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error?.message || `Failed to submit message: ${res.statusText}`);
+
+  const data = await res.json();
+
+  if (!res.ok || !data.success) {
+    throw new Error(data.message || 'Failed to submit message.');
   }
-  return res.json();
+
+  return {
+    success: true,
+    message: 'Your message has been sent successfully.'
+  };
 }

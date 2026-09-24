@@ -7,470 +7,1636 @@ import {
   Clock,
   DollarSign,
   Leaf,
-  Plus,
-  X,
   Check,
+  X,
   Loader2,
   ArrowRight,
   RotateCcw,
-  SlidersHorizontal
+  Navigation,
+  Flag,
+  Footprints,
+  Car,
+  Bus,
+  Train
 } from 'lucide-react';
+
 import { planMyDay } from '../services/api';
 
 export default function PlannerForm({
   cities = [],
   selectedCityId,
   onCityChange,
+
   pois = [],
+
   dayDate,
   setDayDate,
+
   dayStart,
   setDayStart,
+
   dayEnd,
   setDayEnd,
+
   budgetCap,
   setBudgetCap,
+
   carbonCap,
   setCarbonCap,
+
   mustSeePoiIds,
   setMustSeePoiIds,
+
+  // Route controls
+  startPoiId,
+  setStartPoiId,
+
+  endPoiId,
+  setEndPoiId,
+
+  allowedModes,
+  setAllowedModes,
+
+  // Optional — AI can seed optimization weights
+  setWeights,
+
   onOptimize,
   isLoading,
+
   onAiPlanComplete,
+
   language = 'en'
 }) {
   const [poiSearch, setPoiSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] =
+    useState('all');
+
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
-  const [aiSuccessMessage, setAiSuccessMessage] = useState('');
+  const [aiSuccessMessage, setAiSuccessMessage] =
+    useState('');
+
+  // ============================================================
+  // AI QUICK SUGGESTIONS
+  // ============================================================
 
   const suggestions = [
-    { label: '🌱 Plan a low-carbon day', prompt: 'Plan a low-carbon day in Bengaluru. Prioritize walking and green attractions.' },
-    { label: '💰 Plan a budget-friendly day', prompt: 'Plan a budget-friendly day under ₹1200 with cultural sights and parks.' },
-    { label: '⚡ Plan the fastest day', prompt: 'Plan a fast, time-efficient route hitting top highlights in 6 hours.' },
-    { label: '📍 Must-see highlights', prompt: 'Plan a route covering the most iconic landmarks and historic monuments.' }
+    {
+      label: '🌱 Low-carbon day',
+      prompt:
+        'Plan a low-carbon day in Bengaluru from 08:00 to 20:00. Choose practical start and end locations, prioritize walking, and prefer green attractions.'
+    },
+    {
+      label: '💰 Budget-friendly',
+      prompt:
+        'Plan a budget-friendly day in Bengaluru from 08:00 to 20:00 under ₹1200. Choose practical start and end locations, cultural sights and parks, and prefer low-cost transport.'
+    },
+    {
+      label: '⚡ Fastest day',
+      prompt:
+        'Plan a fast, time-efficient day in Bengaluru from 08:00 to 18:00. Choose practical start and end locations and prioritize the shortest feasible travel time.'
+    },
+    {
+      label: '📍 Must-see highlights',
+      prompt:
+        'Plan a day in Bengaluru from 08:00 to 20:00 covering the most important landmarks and historic attractions. Choose practical start and end locations.'
+    }
   ];
+
+  // ============================================================
+  // TRANSLATIONS
+  // ============================================================
 
   const t = {
     en: {
       planYourDay: 'PLAN YOUR ROUTE',
-      planSubtitle: 'Configure constraints or use the AI concierge to seed your day.',
+
+      planSubtitle:
+        'Configure constraints or use the AI concierge to seed your day.',
+
       aiHeader: 'AI PLAN MY DAY',
-      aiPlaceholder: 'What does your ideal day look like? (e.g. "Low carbon day in Bengaluru under ₹1500...")',
+
+      aiPlaceholder:
+        'What does your ideal day look like? (e.g. "Low carbon day in Bengaluru under ₹1500...")',
+
       aiBtn: 'Plan My Day →',
-      aiThinking: 'AI Concierge is reasoning about your day...',
+
+      aiThinking:
+        'AI Concierge is reasoning about your day...',
+
       destination: 'Destination City',
+
       date: 'Date of Travel',
-      start: 'Day Start Time',
-      end: 'Day End Time',
+
+      startTime: 'Day Start Time',
+
+      endTime: 'Day End Time',
+
       budget: 'Budget Cap (₹)',
+
       carbon: 'Carbon Cap (kg CO₂)',
-      mustSee: 'Must-See Attractions (Hard Constraints)',
-      searchPois: 'Filter attractions by name or tag...',
+
+      route: 'ROUTE CONFIGURATION',
+
+      startLocation: 'Start Location',
+
+      endLocation: 'End Location',
+
+      startHint:
+        'Where your itinerary begins',
+
+      endHint:
+        'Where your itinerary finishes',
+
+      transport: 'ALLOWED TRANSPORT MODES',
+
+      walk: 'Walk',
+
+      cab: 'Cab',
+
+      bus: 'Bus',
+
+      metro: 'Metro',
+
+      mustSee:
+        'Must-See Attractions (Hard Constraints)',
+
+      searchPois:
+        'Filter attractions by name or tag...',
+
       allCats: 'All Categories',
-      selectedCount: 'selected (strictly enforced)',
-      optimizeBtn: 'Optimize My Route →',
-      optimizingBtn: 'Optimizing Route...',
-      clearBtn: 'Clear AI Prompt',
-      validationError: 'Please check your inputs: city and start/end times are required.'
+
+      selectedCount:
+        'selected (strictly enforced)',
+
+      optimizeBtn:
+        'Optimize My Route →',
+
+      optimizingBtn:
+        'Optimizing Route...',
+
+      clearBtn:
+        'Clear AI Prompt'
     },
+
     hi: {
-      planYourDay: 'यात्रा मार्ग निर्धारित करें',
-      planSubtitle: 'प्रतिबंध चुनें या AI सहायक की मदद से योजना बनाएं।',
-      aiHeader: 'AI योजना सहायक (Plan My Day)',
-      aiPlaceholder: 'आपका आदर्श दिन कैसा दिखता है? (उदा. "बेंगलुरु में कम कार्बन और ₹1500 बजट...")',
-      aiBtn: 'दिन की योजना बनाएं →',
-      aiThinking: 'AI आपके लिए सर्वोत्तम मार्ग तैयार कर रहा है...',
-      destination: 'गंतव्य शहर',
-      date: 'यात्रा की तिथि',
-      start: 'आरंभ समय',
-      end: 'समाप्ति समय',
-      budget: 'बजट सीमा (₹)',
-      carbon: 'कार्बन सीमा (kg CO₂)',
-      mustSee: 'अनिवार्य आकर्षण (बाध्यकारी)',
-      searchPois: 'आकर्षण खोजें...',
-      allCats: 'सभी श्रेणियां',
-      selectedCount: 'चुने गए (अनिवार्य)',
-      optimizeBtn: 'मार्ग अनुकूलित करें (Optimize) →',
-      optimizingBtn: 'अनुकूलन जारी है...',
-      clearBtn: 'प्रॉम्प्ट साफ़ करें',
-      validationError: 'कृपया शहर एवं समय का सही चयन करें।'
+      planYourDay:
+        'यात्रा मार्ग निर्धारित करें',
+
+      planSubtitle:
+        'प्रतिबंध चुनें या AI सहायक की मदद से अपनी यात्रा की योजना बनाएं।',
+
+      aiHeader:
+        'AI यात्रा योजना',
+
+      aiPlaceholder:
+        'आपका आदर्श दिन कैसा दिखता है?',
+
+      aiBtn:
+        'दिन की योजना बनाएं →',
+
+      aiThinking:
+        'AI आपकी यात्रा की योजना बना रहा है...',
+
+      destination:
+        'गंतव्य शहर',
+
+      date:
+        'यात्रा की तारीख',
+
+      startTime:
+        'दिन शुरू होने का समय',
+
+      endTime:
+        'दिन समाप्त होने का समय',
+
+      budget:
+        'बजट सीमा (₹)',
+
+      carbon:
+        'कार्बन सीमा (kg CO₂)',
+
+      route:
+        'मार्ग कॉन्फ़िगरेशन',
+
+      startLocation:
+        'प्रारंभ स्थान',
+
+      endLocation:
+        'अंतिम स्थान',
+
+      startHint:
+        'यात्रा यहां से शुरू होगी',
+
+      endHint:
+        'यात्रा यहां समाप्त होगी',
+
+      transport:
+        'अनुमत परिवहन साधन',
+
+      walk:
+        'पैदल',
+
+      cab:
+        'कैब',
+
+      bus:
+        'बस',
+
+      metro:
+        'मेट्रो',
+
+      mustSee:
+        'अनिवार्य आकर्षण',
+
+      searchPois:
+        'आकर्षण खोजें...',
+
+      allCats:
+        'सभी श्रेणियां',
+
+      selectedCount:
+        'चयनित (अनिवार्य)',
+
+      optimizeBtn:
+        'मार्ग अनुकूलित करें →',
+
+      optimizingBtn:
+        'मार्ग अनुकूलित हो रहा है...',
+
+      clearBtn:
+        'AI प्रॉम्प्ट साफ़ करें'
     }
   }[language];
 
-  // Unique categories
-  const categories = ['all', ...Array.from(new Set(pois.map(p => p.poi_category).filter(Boolean)))];
+  // ============================================================
+  // CATEGORIES
+  // ============================================================
 
-  // Filtered POIs
-  const filteredPois = pois.filter(p => {
-    const matchesSearch = poiSearch.trim() === '' ||
-      p.name.toLowerCase().includes(poiSearch.toLowerCase()) ||
-      (p.tags && p.tags.toLowerCase().includes(poiSearch.toLowerCase()));
-    const matchesCat = selectedCategory === 'all' || p.poi_category === selectedCategory;
-    return matchesSearch && matchesCat;
+  const categories = [
+    'all',
+    ...Array.from(
+      new Set(
+        pois
+          .map((poi) => poi.poi_category)
+          .filter(Boolean)
+      )
+    )
+  ];
+
+  // ============================================================
+  // FILTER POIs
+  // ============================================================
+
+  const filteredPois = pois.filter((poi) => {
+    const query =
+      poiSearch.trim().toLowerCase();
+
+    const matchesSearch =
+      query === '' ||
+      poi.name
+        .toLowerCase()
+        .includes(query) ||
+      (
+        poi.tags &&
+        poi.tags
+          .toLowerCase()
+          .includes(query)
+      );
+
+    const matchesCategory =
+      selectedCategory === 'all' ||
+      poi.poi_category ===
+        selectedCategory;
+
+    return (
+      matchesSearch &&
+      matchesCategory
+    );
   });
 
+  // ============================================================
+  // MUST-SEE TOGGLE
+  // ============================================================
+
   const toggleMustSee = (poiId) => {
-    if (mustSeePoiIds.includes(poiId)) {
-      setMustSeePoiIds(mustSeePoiIds.filter(id => id !== poiId));
+    if (
+      mustSeePoiIds.includes(poiId)
+    ) {
+      setMustSeePoiIds(
+        mustSeePoiIds.filter(
+          (id) => id !== poiId
+        )
+      );
     } else {
-      setMustSeePoiIds([...mustSeePoiIds, poiId]);
+      setMustSeePoiIds([
+        ...mustSeePoiIds,
+        poiId
+      ]);
     }
   };
 
-  const handleSelectSuggestion = (promptText) => {
+  // ============================================================
+  // TRANSPORT MODE TOGGLE
+  // ============================================================
+
+  const toggleTransportMode = (
+    mode
+  ) => {
+    const currentModes =
+      allowedModes || [];
+
+    if (
+      currentModes.includes(mode)
+    ) {
+      // Never allow zero transport
+      // modes.
+      if (
+        currentModes.length === 1
+      ) {
+        return;
+      }
+
+      setAllowedModes(
+        currentModes.filter(
+          (item) => item !== mode
+        )
+      );
+    } else {
+      setAllowedModes([
+        ...currentModes,
+        mode
+      ]);
+    }
+  };
+
+  // ============================================================
+  // AI SUGGESTION
+  // ============================================================
+
+  const handleSelectSuggestion = (
+    promptText
+  ) => {
     setAiPrompt(promptText);
     setAiError('');
     setAiSuccessMessage('');
   };
 
-  const handleAiPlanMyDay = async (e) => {
-    if (e) e.preventDefault();
-    if (!aiPrompt.trim()) return;
+  // ============================================================
+  // AI PLAN MY DAY
+  // ============================================================
+
+  const handleAiPlanMyDay = async (
+    event
+  ) => {
+    if (event) {
+      event.preventDefault();
+    }
+
+    if (!aiPrompt.trim()) {
+      return;
+    }
 
     setAiLoading(true);
     setAiError('');
     setAiSuccessMessage('');
 
     try {
-      const data = await planMyDay(aiPrompt, selectedCityId);
-      if (data && data.success) {
-        if (data.city?.city_id) onCityChange(data.city.city_id);
-        if (data.parsed_intent?.budget_cap) setBudgetCap(data.parsed_intent.budget_cap);
-        if (data.parsed_intent?.carbon_cap_kg) setCarbonCap(String(data.parsed_intent.carbon_cap_kg));
-        if (data.parsed_intent?.day_start) setDayStart(data.parsed_intent.day_start);
-        if (data.parsed_intent?.day_end) setDayEnd(data.parsed_intent.day_end);
-        if (data.parsed_intent?.must_see_poi_ids) {
-          setMustSeePoiIds(data.parsed_intent.must_see_poi_ids);
+      const data =
+        await planMyDay(
+          aiPrompt,
+          selectedCityId
+        );
+
+      if (
+        data &&
+        data.success
+      ) {
+        // ------------------------------------------------------
+        // CITY
+        // ------------------------------------------------------
+
+        if (
+          data.city?.city_id
+        ) {
+          onCityChange(
+            data.city.city_id
+          );
         }
 
-        if (data.ai_status?.fallback) {
-          setAiSuccessMessage('AI is temporarily unavailable. ReRoute is using smart fallback planning.');
+        // ------------------------------------------------------
+        // BASIC CONSTRAINTS
+        // ------------------------------------------------------
+
+        if (
+          data.parsed_intent?.budget_cap !==
+            undefined &&
+          data.parsed_intent?.budget_cap !==
+            null &&
+          data.parsed_intent?.budget_cap !== ''
+        ) {
+          setBudgetCap(
+            String(
+              data.parsed_intent
+                .budget_cap
+            )
+          );
+        }
+
+        if (
+          data.parsed_intent?.carbon_cap_kg !==
+            undefined &&
+          data.parsed_intent?.carbon_cap_kg !==
+            null &&
+          data.parsed_intent?.carbon_cap_kg !== ''
+        ) {
+          setCarbonCap(
+            String(
+              data.parsed_intent
+                .carbon_cap_kg
+            )
+          );
+        }
+
+        if (
+          data.parsed_intent
+            ?.day_start
+        ) {
+          setDayStart(
+            data.parsed_intent
+              .day_start
+          );
+        }
+
+        if (
+          data.parsed_intent
+            ?.day_end
+        ) {
+          setDayEnd(
+            data.parsed_intent
+              .day_end
+          );
+        }
+
+        // ------------------------------------------------------
+        // MUST-SEE POIs
+        // ------------------------------------------------------
+
+        if (
+          Array.isArray(
+            data.parsed_intent
+              ?.must_see_poi_ids
+          )
+        ) {
+          setMustSeePoiIds(
+            data.parsed_intent
+              .must_see_poi_ids
+          );
+        }
+
+        // ------------------------------------------------------
+        // AI -> START LOCATION
+        // ------------------------------------------------------
+
+        if (
+          data.parsed_intent
+            ?.start_poi_id
+        ) {
+          setStartPoiId(
+            data.parsed_intent
+              .start_poi_id
+          );
+        }
+
+        // ------------------------------------------------------
+        // AI -> END LOCATION
+        // ------------------------------------------------------
+
+        if (
+          data.parsed_intent
+            ?.end_poi_id
+        ) {
+          setEndPoiId(
+            data.parsed_intent
+              .end_poi_id
+          );
+        }
+
+        // ------------------------------------------------------
+        // AI -> TRANSPORT MODES
+        // ------------------------------------------------------
+
+        const aiAllowedModes =
+          data.parsed_intent
+            ?.allowed_modes ||
+          data.parsed_intent
+            ?.transport_modes ||
+          data.parsed_intent
+            ?.modes;
+
+        if (
+          Array.isArray(
+            aiAllowedModes
+          ) &&
+          aiAllowedModes.length > 0
+        ) {
+          const validModes = [
+            'walk',
+            'cab',
+            'bus',
+            'metro'
+          ];
+
+          const normalizedModes =
+            aiAllowedModes
+              .map((mode) =>
+                String(mode)
+                  .trim()
+                  .toLowerCase()
+              )
+              .filter((mode) =>
+                validModes.includes(
+                  mode
+                )
+              );
+
+          if (
+            normalizedModes.length > 0
+          ) {
+            setAllowedModes(
+              Array.from(
+                new Set(
+                  normalizedModes
+                )
+              )
+            );
+          }
+        }
+
+        // ------------------------------------------------------
+        // AI -> OPTIMIZATION WEIGHTS
+        // ------------------------------------------------------
+
+        if (
+          typeof setWeights ===
+            'function' &&
+          data.parsed_intent
+            ?.weights
+        ) {
+          const aiWeights =
+            data.parsed_intent
+              .weights;
+
+          const cost =
+            Number(
+              aiWeights.cost
+            );
+
+          const time =
+            Number(
+              aiWeights.time
+            );
+
+          const carbon =
+            Number(
+              aiWeights.carbon
+            );
+
+          if (
+            Number.isFinite(cost) &&
+            Number.isFinite(time) &&
+            Number.isFinite(carbon) &&
+            cost >= 0 &&
+            time >= 0 &&
+            carbon >= 0 &&
+            cost + time + carbon > 0
+          ) {
+            setWeights({
+              cost,
+              time,
+              carbon
+            });
+          }
+        }
+
+        // ------------------------------------------------------
+        // AI STATUS
+        // ------------------------------------------------------
+
+        if (
+          data.ai_status?.fallback
+        ) {
+          setAiSuccessMessage(
+            'AI is temporarily unavailable. ReRoute is using smart fallback planning.'
+          );
         } else {
-          setAiSuccessMessage(data.ai_status?.message || 'AI planned your day based on your preferences!');
+          setAiSuccessMessage(
+            data.ai_status?.message ||
+              'AI planned your day based on your preferences!'
+          );
         }
 
-        if (onAiPlanComplete) {
+        // ------------------------------------------------------
+        // CALLBACK
+        // ------------------------------------------------------
+
+        if (
+          onAiPlanComplete
+        ) {
           onAiPlanComplete(data);
         }
       } else {
-        throw new Error(data.error || 'Failed to generate itinerary plan.');
+        throw new Error(
+          data?.error ||
+            'Failed to generate itinerary plan.'
+        );
       }
     } catch (err) {
-      console.error('Plan my day error:', err);
-      setAiError(err.message || 'Could not complete AI planning request.');
+      console.error(
+        'Plan my day error:',
+        err
+      );
+
+      setAiError(
+        err.message ||
+          'Could not complete AI planning request.'
+      );
     } finally {
       setAiLoading(false);
     }
   };
 
+  // ============================================================
+  // TRANSPORT ICON
+  // ============================================================
+
+  const transportOptions = [
+    {
+      id: 'walk',
+      label: t.walk,
+      icon: Footprints
+    },
+    {
+      id: 'cab',
+      label: t.cab,
+      icon: Car
+    },
+    {
+      id: 'bus',
+      label: t.bus,
+      icon: Bus
+    },
+    {
+      id: 'metro',
+      label: t.metro,
+      icon: Train
+    }
+  ];
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+
   return (
     <div className="planner-form-card">
-      {/* Top Heading */}
+
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
+
       <div className="form-header">
-        <h2 className="form-main-title">{t.planYourDay}</h2>
-        <p className="form-subtitle">{t.planSubtitle}</p>
+        <h2 className="form-main-title">
+          {t.planYourDay}
+        </h2>
+
+        <p className="form-subtitle">
+          {t.planSubtitle}
+        </p>
       </div>
 
-      {/* AI Plan My Day Concierge Box */}
+      {/* ======================================================
+          AI CONCIERGE
+      ====================================================== */}
+
       <div className="ai-concierge-panel">
+
         <div className="ai-panel-header">
+
           <div className="ai-panel-title">
-            <Sparkles size={16} className="ai-sparkle-icon" />
-            <span>{t.aiHeader}</span>
+            <Sparkles
+              size={16}
+              className="ai-sparkle-icon"
+            />
+
+            <span>
+              {t.aiHeader}
+            </span>
           </div>
+
           {aiPrompt && (
             <button
               type="button"
               className="ai-clear-btn"
-              onClick={() => { setAiPrompt(''); setAiError(''); setAiSuccessMessage(''); }}
+              onClick={() => {
+                setAiPrompt('');
+                setAiError('');
+                setAiSuccessMessage('');
+              }}
               title={t.clearBtn}
             >
               <RotateCcw size={13} />
               <span>Clear</span>
             </button>
           )}
+
         </div>
 
-        <form onSubmit={handleAiPlanMyDay} className="ai-input-form">
+        <form
+          onSubmit={
+            handleAiPlanMyDay
+          }
+          className="ai-input-form"
+        >
+
           <div className="ai-input-wrapper">
+
             <textarea
               rows={2}
               className="ai-textarea"
-              placeholder={t.aiPlaceholder}
+              placeholder={
+                t.aiPlaceholder
+              }
               value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
+              onChange={(event) =>
+                setAiPrompt(
+                  event.target.value
+                )
+              }
               disabled={aiLoading}
             />
+
           </div>
 
-          {/* Quick Suggestion Chips */}
+          {/* Suggestions */}
+
           <div className="ai-suggestions-row">
-            {suggestions.map((s) => (
-              <button
-                key={s.label}
-                type="button"
-                className="ai-suggestion-chip"
-                onClick={() => handleSelectSuggestion(s.prompt)}
-              >
-                {s.label}
-              </button>
-            ))}
+
+            {suggestions.map(
+              (suggestion) => (
+                <button
+                  key={
+                    suggestion.label
+                  }
+                  type="button"
+                  className="ai-suggestion-chip"
+                  onClick={() =>
+                    handleSelectSuggestion(
+                      suggestion.prompt
+                    )
+                  }
+                >
+                  {
+                    suggestion.label
+                  }
+                </button>
+              )
+            )}
+
           </div>
 
           <div className="ai-action-row">
+
             <button
               type="submit"
-              disabled={aiLoading || !aiPrompt.trim()}
+              disabled={
+                aiLoading ||
+                !aiPrompt.trim()
+              }
               className="btn-ai-plan"
             >
               {aiLoading ? (
                 <>
-                  <Loader2 size={16} className="spin" />
-                  <span>{t.aiThinking}</span>
+                  <Loader2
+                    size={16}
+                    className="spin"
+                  />
+
+                  <span>
+                    {t.aiThinking}
+                  </span>
                 </>
               ) : (
                 <>
-                  <Sparkles size={16} />
-                  <span>{t.aiBtn}</span>
+                  <Sparkles
+                    size={16}
+                  />
+
+                  <span>
+                    {t.aiBtn}
+                  </span>
                 </>
               )}
             </button>
+
           </div>
+
         </form>
 
         {aiError && (
           <div className="ai-status-banner error">
-            <span>{aiError}</span>
+            <span>
+              {aiError}
+            </span>
           </div>
         )}
 
         {aiSuccessMessage && (
           <div className="ai-status-banner success">
             <Check size={14} />
-            <span>{aiSuccessMessage}</span>
+
+            <span>
+              {aiSuccessMessage}
+            </span>
           </div>
         )}
+
       </div>
 
-      {/* Manual Constraint Grid */}
+      {/* ======================================================
+          BASIC CONSTRAINTS
+      ====================================================== */}
+
       <div className="form-grid">
+
         {/* Destination */}
+
         <div className="form-field full-width">
+
           <label className="field-label">
             <MapPin size={14} />
-            <span>{t.destination}</span>
+
+            <span>
+              {t.destination}
+            </span>
           </label>
+
           <div className="select-wrapper">
+
             <select
-              value={selectedCityId}
-              onChange={(e) => onCityChange(e.target.value)}
+              value={
+                selectedCityId
+              }
+              onChange={(event) =>
+                onCityChange(
+                  event.target.value
+                )
+              }
               className="form-select"
             >
-              {cities.map((city) => (
-                <option key={city.city_id} value={city.city_id}>
-                  {city.name} {city.state ? `(${city.state})` : city.country_code ? `(${city.country_code})` : ''} • {city.region || 'India'}
-                </option>
-              ))}
+              {cities.map(
+                (city) => (
+                  <option
+                    key={
+                      city.city_id
+                    }
+                    value={
+                      city.city_id
+                    }
+                  >
+                    {city.name}
+                    {city.state
+                      ? ` (${city.state})`
+                      : ''}
+                    {' • '}
+                    {city.region ||
+                      'India'}
+                  </option>
+                )
+              )}
             </select>
+
           </div>
+
         </div>
 
-        {/* Date of Travel */}
+        {/* Date */}
+
         <div className="form-field">
+
           <label className="field-label">
             <Calendar size={14} />
-            <span>{t.date}</span>
+
+            <span>
+              {t.date}
+            </span>
           </label>
+
           <input
             type="date"
-            value={dayDate || '2026-09-25'}
-            onChange={(e) => setDayDate && setDayDate(e.target.value)}
+            value={
+              dayDate ||
+              '2026-09-25'
+            }
+            onChange={(event) =>
+              setDayDate(
+                event.target.value
+              )
+            }
             className="form-input"
           />
+
         </div>
 
-        {/* Day Start */}
+        {/* Start Time */}
+
         <div className="form-field">
+
           <label className="field-label">
             <Clock size={14} />
-            <span>{t.start}</span>
+
+            <span>
+              {t.startTime}
+            </span>
           </label>
+
           <input
             type="time"
             value={dayStart}
-            onChange={(e) => setDayStart(e.target.value)}
+            onChange={(event) =>
+              setDayStart(
+                event.target.value
+              )
+            }
             className="form-input"
           />
+
         </div>
 
-        {/* Day End */}
+        {/* End Time */}
+
         <div className="form-field">
+
           <label className="field-label">
             <Clock size={14} />
-            <span>{t.end}</span>
+
+            <span>
+              {t.endTime}
+            </span>
           </label>
+
           <input
             type="time"
             value={dayEnd}
-            onChange={(e) => setDayEnd(e.target.value)}
+            onChange={(event) =>
+              setDayEnd(
+                event.target.value
+              )
+            }
             className="form-input"
           />
+
         </div>
 
-        {/* Budget Cap */}
+        {/* Budget */}
+
         <div className="form-field">
+
           <label className="field-label">
             <DollarSign size={14} />
-            <span>{t.budget}</span>
+
+            <span>
+              {t.budget}
+            </span>
           </label>
+
           <input
             type="number"
             min="0"
             step="100"
             value={budgetCap}
-            onChange={(e) => setBudgetCap(e.target.value)}
-            placeholder="e.g. 2500"
+            onChange={(event) =>
+              setBudgetCap(
+                event.target.value
+              )
+            }
+            placeholder="2500"
             className="form-input"
           />
+
         </div>
 
-        {/* Carbon Cap */}
+        {/* Carbon */}
+
         <div className="form-field">
+
           <label className="field-label">
             <Leaf size={14} />
-            <span>{t.carbon}</span>
+
+            <span>
+              {t.carbon}
+            </span>
           </label>
+
           <input
             type="number"
             min="0"
             step="0.5"
             value={carbonCap}
-            onChange={(e) => setCarbonCap(e.target.value)}
-            placeholder="e.g. 10"
+            onChange={(event) =>
+              setCarbonCap(
+                event.target.value
+              )
+            }
+            placeholder="10"
             className="form-input"
           />
+
         </div>
+
       </div>
 
-      {/* Must-See POIs Section */}
-      <div className="must-see-section">
-        <div className="must-see-header">
-          <label className="field-label bold">
-            <span>{t.mustSee}</span>
-            <span className="selected-tag">
-              {mustSeePoiIds.length} {t.selectedCount}
+      {/* ======================================================
+          ROUTE CONFIGURATION
+      ====================================================== */}
+
+      <div className="route-config-section">
+
+        <div className="route-config-header">
+
+          <div>
+
+            <div className="route-config-title">
+              <Navigation
+                size={16}
+              />
+
+              <span>
+                {t.route}
+              </span>
+            </div>
+
+            <p className="route-config-subtitle">
+              Define the hard start,
+              end and transport
+              constraints.
+            </p>
+
+          </div>
+
+          <div className="route-config-badge">
+            HARD CONSTRAINTS
+          </div>
+
+        </div>
+
+        {/* Start / End */}
+
+        <div className="route-endpoints-grid">
+
+          {/* START */}
+
+          <div className="form-field">
+
+            <label className="field-label">
+
+              <Navigation
+                size={14}
+              />
+
+              <span>
+                {t.startLocation}
+              </span>
+
+            </label>
+
+            <div className="select-wrapper">
+
+              <select
+                value={
+                  startPoiId || ''
+                }
+                onChange={(event) =>
+                  setStartPoiId(
+                    event.target.value
+                  )
+                }
+                className="form-select"
+              >
+
+                <option value="">
+                  Select start location
+                </option>
+
+                {pois.map(
+                  (poi) => (
+                    <option
+                      key={
+                        poi.poi_id
+                      }
+                      value={
+                        poi.poi_id
+                      }
+                    >
+                      {poi.name}
+                    </option>
+                  )
+                )}
+
+              </select>
+
+            </div>
+
+            <span className="field-hint">
+              {t.startHint}
             </span>
+
+          </div>
+
+          {/* END */}
+
+          <div className="form-field">
+
+            <label className="field-label">
+
+              <Flag
+                size={14}
+              />
+
+              <span>
+                {t.endLocation}
+              </span>
+
+            </label>
+
+            <div className="select-wrapper">
+
+              <select
+                value={
+                  endPoiId || ''
+                }
+                onChange={(event) =>
+                  setEndPoiId(
+                    event.target.value
+                  )
+                }
+                className="form-select"
+              >
+
+                <option value="">
+                  Select end location
+                </option>
+
+                {pois.map(
+                  (poi) => (
+                    <option
+                      key={
+                        poi.poi_id
+                      }
+                      value={
+                        poi.poi_id
+                      }
+                    >
+                      {poi.name}
+                    </option>
+                  )
+                )}
+
+              </select>
+
+            </div>
+
+            <span className="field-hint">
+              {t.endHint}
+            </span>
+
+          </div>
+
+        </div>
+
+        {/* Transport */}
+
+        <div className="transport-section">
+
+          <div className="transport-header">
+
+            <label className="field-label">
+
+              <Car size={14} />
+
+              <span>
+                {t.transport}
+              </span>
+
+            </label>
+
+            <span className="transport-count">
+              {(allowedModes || [])
+                .length}{' '}
+              selected
+            </span>
+
+          </div>
+
+          <div className="transport-options">
+
+            {transportOptions.map(
+              ({
+                id,
+                label,
+                icon: Icon
+              }) => {
+
+                const selected =
+                  (
+                    allowedModes ||
+                    []
+                  ).includes(id);
+
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`transport-option ${
+                      selected
+                        ? 'selected'
+                        : ''
+                    }`}
+                    onClick={() =>
+                      toggleTransportMode(
+                        id
+                      )
+                    }
+                    aria-pressed={
+                      selected
+                    }
+                  >
+
+                    <span className="transport-icon">
+                      <Icon
+                        size={17}
+                      />
+                    </span>
+
+                    <span>
+                      {label}
+                    </span>
+
+                    {selected && (
+                      <Check
+                        size={14}
+                        className="transport-check"
+                      />
+                    )}
+
+                  </button>
+                );
+              }
+            )}
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* ======================================================
+          MUST-SEE POIs
+      ====================================================== */}
+
+      <div className="must-see-section">
+
+        <div className="must-see-header">
+
+          <label className="field-label bold">
+
+            <span>
+              {t.mustSee}
+            </span>
+
+            <span className="selected-tag">
+              {
+                mustSeePoiIds.length
+              }{' '}
+              {t.selectedCount}
+            </span>
+
           </label>
 
           <div className="poi-filter-controls">
+
             <div className="poi-search-box">
+
               <Search size={14} />
+
               <input
                 type="text"
-                placeholder={t.searchPois}
+                placeholder={
+                  t.searchPois
+                }
                 value={poiSearch}
-                onChange={(e) => setPoiSearch(e.target.value)}
+                onChange={(event) =>
+                  setPoiSearch(
+                    event.target.value
+                  )
+                }
               />
+
             </div>
 
             <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
+              value={
+                selectedCategory
+              }
+              onChange={(event) =>
+                setSelectedCategory(
+                  event.target.value
+                )
+              }
               className="cat-select"
             >
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c === 'all' ? t.allCats : c.toUpperCase()}
-                </option>
-              ))}
+
+              {categories.map(
+                (category) => (
+                  <option
+                    key={
+                      category
+                    }
+                    value={
+                      category
+                    }
+                  >
+                    {category ===
+                    'all'
+                      ? t.allCats
+                      : category.toUpperCase()}
+                  </option>
+                )
+              )}
+
             </select>
+
           </div>
+
         </div>
 
-        {/* Selected POIs Chips */}
-        {mustSeePoiIds.length > 0 && (
+        {/* Selected chips */}
+
+        {mustSeePoiIds.length >
+          0 && (
           <div className="selected-chips-row">
-            {mustSeePoiIds.map((id) => {
-              const poi = pois.find((p) => p.poi_id === id);
-              return (
-                <div key={id} className="selected-poi-chip">
-                  <span>{poi ? poi.name : id}</span>
-                  <button
-                    type="button"
-                    onClick={() => toggleMustSee(id)}
-                    aria-label={`Remove ${poi ? poi.name : id}`}
+
+            {mustSeePoiIds.map(
+              (id) => {
+
+                const poi =
+                  pois.find(
+                    (item) =>
+                      item.poi_id ===
+                      id
+                  );
+
+                return (
+                  <div
+                    key={id}
+                    className="selected-poi-chip"
                   >
-                    <X size={13} />
-                  </button>
-                </div>
-              );
-            })}
+
+                    <span>
+                      {poi
+                        ? poi.name
+                        : id}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        toggleMustSee(
+                          id
+                        )
+                      }
+                      aria-label={`Remove ${
+                        poi
+                          ? poi.name
+                          : id
+                      }`}
+                    >
+                      <X
+                        size={13}
+                      />
+                    </button>
+
+                  </div>
+                );
+              }
+            )}
+
           </div>
         )}
 
-        {/* POI Selector Grid */}
-        <div className="poi-cards-grid">
-          {filteredPois.slice(0, 16).map((poi) => {
-            const isSelected = mustSeePoiIds.includes(poi.poi_id);
-            return (
-              <div
-                key={poi.poi_id}
-                className={`poi-select-card ${isSelected ? 'selected' : ''}`}
-                onClick={() => toggleMustSee(poi.poi_id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleMustSee(poi.poi_id); }}
-              >
-                <div className="poi-select-top">
-                  <span className="poi-name">{poi.name}</span>
-                  <div className={`checkbox-indicator ${isSelected ? 'checked' : ''}`}>
-                    {isSelected && <Check size={12} />}
-                  </div>
-                </div>
+        {/* POI cards */}
 
-                <div className="poi-select-meta">
-                  <span>{poi.typical_duration_minutes}m</span>
-                  <span>•</span>
-                  <span>₹{poi.entry_cost}</span>
-                  <span>•</span>
-                  <span>{poi.carbon_kg} kg</span>
-                  {poi.opens_at && (
-                    <>
-                      <span>•</span>
-                      <span className="poi-hours">{poi.opens_at}–{poi.closes_at}</span>
-                    </>
+        <div className="poi-cards-grid">
+
+          {filteredPois
+            .slice(0, 16)
+            .map((poi) => {
+
+              const isSelected =
+                mustSeePoiIds.includes(
+                  poi.poi_id
+                );
+
+              const isStart =
+                startPoiId ===
+                poi.poi_id;
+
+              const isEnd =
+                endPoiId ===
+                poi.poi_id;
+
+              return (
+                <div
+                  key={
+                    poi.poi_id
+                  }
+                  className={`poi-select-card ${
+                    isSelected
+                      ? 'selected'
+                      : ''
+                  }`}
+                  onClick={() =>
+                    toggleMustSee(
+                      poi.poi_id
+                    )
+                  }
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(
+                    event
+                  ) => {
+                    if (
+                      event.key ===
+                        'Enter' ||
+                      event.key ===
+                        ' '
+                    ) {
+                      toggleMustSee(
+                        poi.poi_id
+                      );
+                    }
+                  }}
+                >
+
+                  <div className="poi-select-top">
+
+                    <span className="poi-name">
+                      {poi.name}
+                    </span>
+
+                    <div
+                      className={`checkbox-indicator ${
+                        isSelected
+                          ? 'checked'
+                          : ''
+                      }`}
+                    >
+                      {isSelected && (
+                        <Check
+                          size={12}
+                        />
+                      )}
+                    </div>
+
+                  </div>
+
+                  <div className="poi-select-meta">
+
+                    <span>
+                      {
+                        poi.typical_duration_minutes
+                      }m
+                    </span>
+
+                    <span>•</span>
+
+                    <span>
+                      ₹
+                      {
+                        poi.entry_cost
+                      }
+                    </span>
+
+                    <span>•</span>
+
+                    <span>
+                      {
+                        poi.carbon_kg
+                      }{' '}
+                      kg
+                    </span>
+
+                    {poi.opens_at && (
+                      <>
+                        <span>
+                          •
+                        </span>
+
+                        <span className="poi-hours">
+                          {
+                            poi.opens_at
+                          }
+                          –
+                          {
+                            poi.closes_at
+                          }
+                        </span>
+                      </>
+                    )}
+
+                  </div>
+
+                  {/* Route markers */}
+
+                  {(isStart ||
+                    isEnd) && (
+                    <div className="poi-route-tags">
+
+                      {isStart && (
+                        <span className="poi-route-tag start">
+                          <Navigation
+                            size={10}
+                          />
+                          START
+                        </span>
+                      )}
+
+                      {isEnd && (
+                        <span className="poi-route-tag end">
+                          <Flag
+                            size={10}
+                          />
+                          END
+                        </span>
+                      )}
+
+                    </div>
                   )}
+
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+
         </div>
+
       </div>
 
-      {/* Main Optimize Action */}
+      {/* ======================================================
+          OPTIMIZE
+      ====================================================== */}
+
       <div className="optimize-cta-container">
+
         <button
           type="button"
           onClick={onOptimize}
-          disabled={isLoading || !selectedCityId}
+          disabled={
+            isLoading ||
+            !selectedCityId ||
+            !startPoiId ||
+            !endPoiId ||
+            !allowedModes?.length
+          }
           className="btn-optimize-main"
         >
+
           {isLoading ? (
             <>
-              <Loader2 size={18} className="spin" />
-              <span>{t.optimizingBtn}</span>
+              <Loader2
+                size={18}
+                className="spin"
+              />
+
+              <span>
+                {t.optimizingBtn}
+              </span>
             </>
           ) : (
             <>
-              <span>{t.optimizeBtn}</span>
-              <ArrowRight size={18} />
+              <span>
+                {t.optimizeBtn}
+              </span>
+
+              <ArrowRight
+                size={18}
+              />
             </>
           )}
+
         </button>
+
       </div>
+
     </div>
   );
 }

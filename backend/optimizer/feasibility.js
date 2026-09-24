@@ -147,6 +147,19 @@ function validatePlanConstraints(plan, constraints) {
     }
   }
 
+  // 10. Closed days violations
+  if (plan.closed_day_violations && plan.closed_day_violations.length > 0) {
+    for (const cd of plan.closed_day_violations) {
+      violations.push({
+        type: 'CLOSED_DAY',
+        severity: 'hard',
+        poi_id: cd.poi_id,
+        poi_name: cd.name,
+        message: `${cd.name} is closed on this day (${cd.reason || 'Attraction weekly holiday'}).`
+      });
+    }
+  }
+
   return {
     feasible: violations.length === 0,
     violations

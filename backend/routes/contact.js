@@ -2,20 +2,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
-// Ensure contact_messages table exists in SQLite
-try {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS contact_messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL,
-      message TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-} catch (e) {
-  console.warn('Could not initialize contact_messages table:', e.message);
-}
+// In-memory store for contact submissions to protect read-only APS-09.db
+const inMemoryContactMessages = [];
 
 // POST /api/contact
 router.post('/', (req, res) => {
@@ -45,12 +33,13 @@ router.post('/', (req, res) => {
       });
     }
 
-    try {
-      const stmt = db.prepare('INSERT INTO contact_messages (name, email, message) VALUES (?, ?, ?)');
-      stmt.run(name.trim(), email.trim(), message.trim());
-    } catch (insertErr) {
-      console.warn('Could not persist contact message to SQLite:', insertErr.message);
-    }
+    inMemoryContactMessages.push({
+      id: inMemoryContactMessages.length + 1,
+      name: name.trim(),
+      email: email.trim(),
+      message: message.trim(),
+      created_at: new Date().toISOString()
+    });
 
     res.json({
       success: true,

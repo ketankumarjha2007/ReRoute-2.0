@@ -1755,3 +1755,603 @@
   letter-spacing: 0.05em;
   color: var(--text-muted);
 }
+
+
+/* ============================================================
+   ROUTE CONFIGURATION
+   ============================================================ */
+
+.route-config-section {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  border-radius: 18px;
+  background: linear-gradient(
+    145deg,
+    rgba(248, 250, 252, 0.98),
+    rgba(255, 255, 255, 1)
+  );
+}
+
+.route-config-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.route-config-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.route-config-subtitle {
+  margin: 5px 0 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.route-config-badge {
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.route-endpoints-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.field-hint {
+  display: block;
+  margin-top: 5px;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.transport-section {
+  margin-top: 18px;
+}
+
+.transport-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.transport-count {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.transport-options {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.transport-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.transport-option:hover {
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.transport-option.selected {
+  border-color: #111827;
+  background: #111827;
+  color: #fff;
+}
+
+.transport-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.transport-check {
+  margin-left: 2px;
+}
+
+.poi-route-tags {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.poi-route-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.poi-route-tag.start {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.poi-route-tag.end {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+@media (max-width: 700px) {
+  .route-endpoints-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .transport-options {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .route-config-header {
+    flex-direction: column;
+  }
+}
+
+
+/* ==========================================================================
+   EXTENSION PASS
+   Everything below is additive: existing rules above are untouched.
+   This fills in classes Planner.jsx already renders but that had no
+   styling (the map section, the selected-place callout, the reset
+   button, the empty state, the loading spinner icon) and adds a
+   restrained set of "alive" touches — one entrance moment where a
+   result appears, consistent focus states, and tighter mobile rhythm.
+   ========================================================================== */
+
+.planner-page * {
+  box-sizing: border-box;
+}
+
+/* Spinner icon used by the optimizing overlay and retry affordances */
+.spin {
+  animation: reroute-spin 0.9s linear infinite;
+}
+
+.accent-spin {
+  color: var(--cta-dark);
+}
+
+@keyframes reroute-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Accessible focus ring, consistent with the lime brand accent */
+.planner-page a:focus-visible,
+.planner-page button:focus-visible,
+.planner-page input:focus-visible,
+.planner-page select:focus-visible,
+.planner-page textarea:focus-visible {
+  outline: 2px solid var(--accent-lime);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Map Section (sidebar) — was previously unstyled
+   ========================================================================== */
+.planner-map-section {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: box-shadow 0.25s ease;
+}
+
+.planner-map-section:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+.planner-map-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.planner-map-eyebrow {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-lime-dark);
+  margin-bottom: 4px;
+}
+
+.planner-map-header h3 {
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+  margin: 0 0 4px 0;
+}
+
+.planner-map-header p {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+  max-width: 34ch;
+}
+
+.planner-map-selection-badge {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-lime-dim);
+  border: 1px solid rgba(16, 23, 19, 0.1);
+  max-width: 60%;
+}
+
+.planner-map-selection-badge span {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--accent-lime-dark);
+}
+
+.planner-map-selection-badge strong {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+/* ==========================================================================
+   Selected-place callout beneath the map
+   ========================================================================== */
+.selected-poi-card {
+  background: #FAFCF8;
+  border: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--accent-lime);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: reroute-card-rise 0.35s ease both;
+}
+
+@keyframes reroute-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.selected-poi-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.selected-poi-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.selected-poi-info h3 {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.selected-poi-info > p {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.selected-poi-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 2px;
+}
+
+.selected-poi-meta span {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.selected-poi-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.selected-poi-actions button {
+  flex: 1 1 auto;
+  min-width: 110px;
+  min-height: 40px;
+  background: #FFFFFF;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.selected-poi-actions button:hover:not(:disabled) {
+  border-color: var(--cta-dark);
+  background: var(--cta-dark);
+  color: var(--accent-lime);
+  transform: translateY(-1px);
+}
+
+.selected-poi-actions button:disabled {
+  background: var(--accent-lime);
+  border-color: transparent;
+  color: #101713;
+  cursor: default;
+  opacity: 0.9;
+}
+
+/* ==========================================================================
+   Reset controls button
+   ========================================================================== */
+.planner-reset-btn {
+  width: 100%;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #FFFFFF;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.planner-reset-btn:hover {
+  border-color: var(--border-hover);
+  color: var(--text-main);
+  background: #FAFBF9;
+  transform: translateY(-1px);
+}
+
+.planner-reset-btn:active {
+  transform: translateY(0);
+}
+
+/* ==========================================================================
+   Results header grouping + result-block entrance
+   ========================================================================== */
+.results-title-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.feasible-results-block,
+.infeasible-results-block {
+  display: flex;
+  flex-direction: column;
+  animation: reroute-result-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes reroute-result-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selected-poi-card,
+  .feasible-results-block,
+  .infeasible-results-block,
+  .spin,
+  .live-pulse-dot {
+    animation: none;
+  }
+}
+
+.planner-result-map-card {
+  margin-bottom: 20px;
+}
+
+/* ==========================================================================
+   Empty state
+   ========================================================================== */
+.planner-initial-empty-state {
+  background: var(--card-bg);
+  border: 1.5px dashed var(--border-hover);
+  border-radius: var(--radius-xl);
+  padding: 64px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.planner-initial-empty-state .empty-icon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-lime-dim);
+  color: var(--accent-lime-dark);
+  margin-bottom: 12px;
+}
+
+.planner-initial-empty-state h3 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.planner-initial-empty-state p {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  max-width: 34ch;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ==========================================================================
+   Responsive refinements
+   Existing breakpoints (1280 / 992 / 768 / 700 / 600) are preserved above;
+   these extend coverage for the newly-styled elements and small phones.
+   ========================================================================== */
+
+@media (max-width: 992px) {
+  .planner-page {
+    padding: 88px 18px 64px 18px;
+  }
+}
+
+@media (max-width: 700px) {
+  .planner-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .language-toggle {
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  .planner-headline {
+    font-size: 1.65rem;
+  }
+
+  .results-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .planner-map-header {
+    flex-direction: column;
+  }
+
+  .planner-map-selection-badge {
+    align-self: stretch;
+    align-items: flex-start;
+    max-width: none;
+  }
+
+  .planner-map-selection-badge strong {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .selected-poi-actions button {
+    min-width: 100%;
+  }
+
+  .poi-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .planner-initial-empty-state {
+    padding: 48px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .planner-page {
+    padding: 80px 14px 56px 14px;
+  }
+
+  .planner-headline {
+    font-size: 1.4rem;
+  }
+
+  .planner-tagline {
+    font-size: 0.9rem;
+  }
+
+  .metrics-container {
+    grid-template-columns: 1fr;
+  }
+
+  .preset-buttons-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .transport-options {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stop-time-column {
+    width: 52px;
+  }
+}

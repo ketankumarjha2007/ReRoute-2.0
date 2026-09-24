@@ -1,6 +1,6 @@
 /**
  * Constraints helper module
- * Handles time conversions, opening hours checks, and money arithmetic safely.
+ * Handles time conversions, opening hours checks, closed days, and decimal-safe money arithmetic.
  */
 
 function timeToMinutes(timeStr) {
@@ -19,16 +19,24 @@ function minutesToTime(mins) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
-// Decimal-safe money parser (in integer cents)
+// Decimal-safe integer cents parser without floating-point inaccuracies
 function moneyToCents(amount) {
   if (amount === null || amount === undefined) return 0;
   if (typeof amount === 'number') {
     return Math.round(amount * 100);
   }
-  const clean = String(amount).replace(/[^0-9.-]/g, '');
-  const parsed = parseFloat(clean);
-  if (isNaN(parsed)) return 0;
-  return Math.round(parsed * 100);
+  const clean = String(amount).trim().replace(/[^0-9.-]/g, '');
+  if (!clean) return 0;
+
+  const isNeg = clean.startsWith('-');
+  const unsigned = isNeg ? clean.slice(1) : clean;
+  const parts = unsigned.split('.');
+  const whole = parseInt(parts[0] || '0', 10);
+  const fraction = (parts[1] || '').padEnd(2, '0').slice(0, 2);
+  const fracVal = parseInt(fraction, 10) || 0;
+
+  const totalCents = (whole * 100) + fracVal;
+  return isNeg ? -totalCents : totalCents;
 }
 
 function centsToMoney(cents, currency = 'INR') {
@@ -41,9 +49,33 @@ function addMoney(a, b) {
   return centsToMoney(moneyToCents(a) + moneyToCents(b));
 }
 
+// Check if POI is closed on the travel date/day of week
+function isPoiClosedOnDay(closedDaysStr, dateOrDay) {
+  if (!closedDaysStr || dateOrDay === undefined || dateOrDay === null) {
+    return false;
+  }
+  const closedDays = String(closedDaysStr).split(',').map(s => s.trim());
+  let dayIndex = null;
+
+  if (typeof dateOrDay === 'number') {
+    dayIndex = String(dateOrDay);
+  } else if (typeof dateOrDay === 'string') {
+    if (dateOrDay.includes('-')) {
+      const parsed = new Date(dateOrDay);
+      if (!isNaN(parsed.getTime())) {
+        dayIndex = String(parsed.getDay());
+      }
+    } else {
+      dayIndex = dateOrDay.trim();
+    }
+  }
+
+  return dayIndex !== null && closedDays.includes(dayIndex);
+}
+
 // Check if POI can be visited given arrival time and duration
 function checkOpeningHours(arrivalMins, durationMins, opensAtStr, closesAtStr) {
-  if (!opensAtStr || !closesAtStr) {
+  if (!opensAtStr && !closesAtStr) {
     return {
       valid: true,
       actualStartMins: arrivalMins,
@@ -52,8 +84,8 @@ function checkOpeningHours(arrivalMins, durationMins, opensAtStr, closesAtStr) {
     };
   }
 
-  const openMins = timeToMinutes(opensAtStr);
-  const closeMins = timeToMinutes(closesAtStr);
+  const openMins = opensAtStr ? timeToMinutes(opensAtStr) : 0;
+  const closeMins = closesAtStr ? timeToMinutes(closesAtStr) : (24 * 60);
 
   const actualStart = Math.max(arrivalMins, openMins);
   const waitTime = Math.max(0, openMins - arrivalMins);
@@ -83,5 +115,6 @@ module.exports = {
   moneyToCents,
   centsToMoney,
   addMoney,
+  isPoiClosedOnDay,
   checkOpeningHours
 };
