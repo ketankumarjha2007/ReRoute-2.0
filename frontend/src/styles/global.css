@@ -1,0 +1,83 @@
+/* ==========================================================================
+   ReRoute Global Design Tokens & Base Styles
+   Brand Identity:
+     Background: #F5F7F2
+     Cards:      #FFFFFF
+     Text:       #101713
+     Accent:     #B7F34A
+     Secondary:  #52606D / #64748B (Muted Slate)
+     CTA:        #101713 (Dark Ink)
+   ========================================================================== */
+
+:root {
+  --bg-primary: #F5F7F2;
+  --bg-card: #FFFFFF;
+  --text-primary: #101713;
+  --text-secondary: #52606D;
+  --text-muted: #64748B;
+  --text-subtle: #94A3B8;
+  --accent-lime: #B7F34A;
+  --accent-lime-hover: #A3E635;
+  --accent-lime-dim: rgba(183, 243, 74, 0.18);
+  --cta-dark: #101713;
+  --cta-dark-hover: #1E2922;
+  --border-subtle: rgba(16, 23, 19, 0.08);
+  --border-hover: rgba(16, 23, 19, 0.18);
+  --radius-xl: 24px;
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 1px 2px rgba(16, 23, 19, 0.03);
+  --shadow-md: 0 4px 16px rgba(16, 23, 19, 0.04), 0 1px 3px rgba(16, 23, 19, 0.02);
+  --shadow-lg: 0 10px 30px rgba(16, 23, 19, 0.06), 0 2px 6px rgba(16, 23, 19, 0.02);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input, textarea, select {
+  font-family: inherit;
+}
+
+/* Global utility animations */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.accent-spin {
+  color: #101713;
+}
