@@ -1287,13 +1287,3 @@ Integrate road-level route geometry and navigation-aware visualization.
 
 </p>
 ```
-
-### One important thing I deliberately changed
-
-Your uploaded README has some very strong claims such as **"mathematically optimal"**, **"6,418 precomputed travel edges"**, **"20 evaluation benchmark cases"**, and **"all 9 unit and integration tests"**. Those claims appear in the uploaded version. :chatgpt-content-reference{index="1"} :chatgpt-content-reference{index="2"}
-
-For the final GitHub README, I'd **avoid claiming exact optimality, completed benchmark results, or test counts unless those are actually present and runnable in the repository**. The new version therefore presents the optimizer strongly without giving judges an easy opportunity to catch an overclaim.
-
-Also, your uploaded version describes the source of truth as SQLite/`APS-09.db`. :chatgpt-content-reference{index="3"} Since your current ReRoute implementation has been moved onto the Supabase data layer, the improved version reflects the **current application architecture** rather than preserving that outdated database description.
-
-**This version is the one I'd put on GitHub.** It looks much more like a serious engineering/hackathon product README while still telling the judge exactly what to click and why ReRoute is different.
