@@ -270,12 +270,9 @@ export default function Planner() {
 
           setSelectedMapPoi(null);
 
-          // Default first two POIs as must-see
-          const defaults = cityPois
-            .slice(0, 2)
-            .map((poi) => poi.poi_id);
-
-          setMustSeePoiIds(defaults);
+          // Do not automatically mark POIs as must-see.
+          // Required POIs are selected explicitly by the user.
+          setMustSeePoiIds([]);
 
           // Default start/end
           if (cityPois.length > 0) {
@@ -468,8 +465,12 @@ export default function Planner() {
 
     const effectiveCandidates =
       overrideParams.candidate_poi_ids ??
-      pois.map(
-        (poi) => poi.poi_id
+      Array.from(
+        new Set([
+          effectiveStartPoi,
+          effectiveEndPoi,
+          ...effectiveMustSee
+        ].filter(Boolean))
       );
 
     const effectiveBudget =
@@ -1511,6 +1512,10 @@ export default function Planner() {
                       city={
                         selectedCity
                       }
+                      route={{
+                        stops: result.stops || [],
+                        transfers: result.transfers || []
+                      }}
                     />
 
                   </div>
@@ -1850,3 +1855,5 @@ export default function Planner() {
     </div>
   );
 }
+
+

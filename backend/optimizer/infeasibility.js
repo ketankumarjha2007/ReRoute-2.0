@@ -1,344 +1,384 @@
-const {
-  minutesToTime,
-  timeToMinutes,
-  centsToMoney,
-  moneyToCents
-} = require('./constraints');
+function normalizeTimeToMinutes(value) {
+  if (!value || typeof value !== 'string') return null;
 
-/**
- * Diagnoses infeasibility and identifies the binding constraint.
- *
- * Important:
- * For OPENING_HOURS violations, the POI ID is preserved in
- * binding_constraint.poi_id so the relaxation engine can identify
- * exactly which POI's hours need to be relaxed.
- */
-function diagnoseInfeasibility(options, evaluatedAttempts = []) {
-  const {
-    day_start = '09:00',
-    day_end = '18:00',
-    budget_cap,
-    carbon_cap_kg,
-    must_see_poi_ids = []
-  } = options;
+  const [h, m] = value.split(':').map(Number);
 
-  const startMins = timeToMinutes(day_start);
-  const endMins = timeToMinutes(day_end);
-  const availableMins = Math.max(0, endMins - startMins);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
 
-  const budgetCents =
-    budget_cap !== undefined &&
-    budget_cap !== null &&
-    budget_cap !== ''
-      ? moneyToCents(budget_cap)
-      : null;
+  return h * 60 + m;
+}
 
-  const carbonCap =
-    carbon_cap_kg !== undefined &&
-    carbon_cap_kg !== null &&
-    Number(carbon_cap_kg) > 0
-      ? Number(carbon_cap_kg)
-      : null;
+function collectViolations(evaluatedAttempts = []) {
+  const violations = [];
 
-  // ------------------------------------------------------------
-  // Gather violations across all evaluated attempts
-  // ------------------------------------------------------------
-
-  const allViolations = [];
-
-  for (const att of evaluatedAttempts) {
-    if (att?.check?.violations) {
-      allViolations.push(...att.check.violations);
+  for (const attempt of evaluatedAttempts) {
+    for (const violation of attempt?.check?.violations || []) {
+      violations.push({ ...violation });
     }
   }
 
-  // ------------------------------------------------------------
-  // Look for minimum required values among attempted sequences
-  // ------------------------------------------------------------
+  return violations;
+}
 
-  let minRequiredTime = Infinity;
-  let minRequiredCostCents = Infinity;
-  let minRequiredCarbon = Infinity;
+function getConstraintLabel(type) {
+  switch (type) {
+    case 'OPENING_HOURS': return 'Attraction Opening Hours';
+    case 'TIME_LIMIT': return 'Available Time';
+    case 'BUDGET': return 'Budget Limit';
+    case 'CARBON': return 'Carbon Limit';
+    case 'MISSING_TRAVEL_EDGE': return 'Missing Travel Connection';
+    case 'MUST_SEE': return 'Must-See Requirement';
+    case 'START': return 'Starting Point';
+    case 'END': return 'Ending Point';
+    case 'TRANSPORT_MODE': return 'Transport Mode';
+    case 'CLOSED_DAY': return 'Closed Day';
+    default: return 'Multiple Constraints';
+  }
+}
 
-  const openingHourIssues = [];
-  const missingEdgeIssues = [];
+function extractOpeningHourEvidence(evaluatedAttempts = []) {
+  const evidence = [];
 
-  for (const att of evaluatedAttempts) {
-    if (att?.plan?.summary) {
-      const summary = att.plan.summary;
+  for (const attempt of evaluatedAttempts) {
+    const violations =
+      attempt?.plan?.opening_hour_violations || [];
+
+    for (const violation of violations) {
+      const departureMinutes =
+        normalizeTimeToMinutes(violation.departure);
+
+      const closingMinutes =
+        normalizeTimeToMinutes(violation.closes_at);
+
+      const excessMinutes =
+        Number.isFinite(departureMinutes) &&
+        Number.isFinite(closingMinutes)
+          ? departureMinutes - closingMinutes
+          : null;
+
+      evidence.push({
+        type: 'OPENING_HOURS',
+        severity: 'hard',
+        poi_id: violation.poi_id || null,
+        name: violation.name || null,
+        poi_name: violation.name || null,
+        opens_at: violation.opens_at || null,
+        closes_at: violation.closes_at || null,
+        arrival: violation.arrival || null,
+        departure: violation.departure || null,
+        reason: violation.reason || null,
+        excess_minutes: excessMinutes
+      });
+    }
+  }
+
+  return evidence;
+}
+
+function extractMissingEdgeEvidence(evaluatedAttempts = []) {
+  const evidence = [];
+
+  for (const attempt of evaluatedAttempts) {
+    const missingEdges =
+      attempt?.plan?.missing_edges || [];
+
+    for (const edge of missingEdges) {
+      evidence.push({
+        type: 'MISSING_TRAVEL_EDGE',
+        severity: 'hard',
+        from_poi_id:
+          edge.from_poi_id ||
+          edge.origin_poi_id ||
+          null,
+        to_poi_id:
+          edge.to_poi_id ||
+          edge.destination_poi_id ||
+          null,
+        mode: edge.mode || null,
+        message:
+          edge.message ||
+          'No valid travel connection exists.'
+      });
+    }
+  }
+
+  return evidence;
+}
+
+function extractGeneralEvidence(evaluatedAttempts = []) {
+  const evidence = [];
+
+  for (const attempt of evaluatedAttempts) {
+    const violations =
+      attempt?.check?.violations || [];
+
+    const summary =
+      attempt?.plan?.summary || {};
+
+    for (const violation of violations) {
+      if (
+        violation.type === 'OPENING_HOURS' ||
+        violation.type === 'MISSING_TRAVEL_EDGE'
+      ) {
+        continue;
+      }
+
+      const item = {
+        ...violation,
+        severity: violation.severity || 'hard'
+      };
 
       if (
-        Number.isFinite(Number(summary.minutes)) &&
-        summary.minutes < minRequiredTime
+        violation.type === 'TIME_LIMIT' &&
+        Number.isFinite(summary.minutes)
       ) {
-        minRequiredTime = summary.minutes;
+        item.actual_minutes = summary.minutes;
       }
 
       if (
-        Number.isFinite(Number(summary.cost_cents)) &&
-        summary.cost_cents < minRequiredCostCents
+        violation.type === 'BUDGET' &&
+        summary.cost !== undefined
       ) {
-        minRequiredCostCents = summary.cost_cents;
+        item.actual_cost = summary.cost;
       }
 
       if (
-        Number.isFinite(Number(summary.carbon_kg)) &&
-        summary.carbon_kg < minRequiredCarbon
+        violation.type === 'CARBON' &&
+        Number.isFinite(summary.carbon_kg)
       ) {
-        minRequiredCarbon = summary.carbon_kg;
+        item.actual_carbon_kg = summary.carbon_kg;
       }
-    }
 
-    if (
-      Array.isArray(att?.plan?.opening_hour_violations) &&
-      att.plan.opening_hour_violations.length > 0
-    ) {
-      openingHourIssues.push(
-        ...att.plan.opening_hour_violations
-      );
-    }
-
-    if (
-      Array.isArray(att?.plan?.missing_edges) &&
-      att.plan.missing_edges.length > 0
-    ) {
-      missingEdgeIssues.push(
-        ...att.plan.missing_edges
-      );
+      evidence.push(item);
     }
   }
 
-  // ------------------------------------------------------------
-  // Determine binding constraint
-  //
-  // Priority:
-  // 1. Missing travel edge
-  // 2. Opening hours
-  // 3. Time
-  // 4. Budget
-  // 5. Carbon
-  // 6. Multiple constraints
-  // ------------------------------------------------------------
+  return evidence;
+}
 
-  let bindingConstraint = null;
-  let explanation = '';
+function buildConstraintEvidence(
+  options = {},
+  evaluatedAttempts = []
+) {
+  const opening =
+    extractOpeningHourEvidence(evaluatedAttempts);
 
-  // ------------------------------------------------------------
-  // 1. Missing travel edge
-  // ------------------------------------------------------------
+  const missingEdges =
+    extractMissingEdgeEvidence(evaluatedAttempts);
 
-  if (missingEdgeIssues.length > 0) {
-    const edge = missingEdgeIssues[0];
+  const general =
+    extractGeneralEvidence(evaluatedAttempts);
 
-    bindingConstraint = {
-      type: 'MISSING_TRAVEL_EDGE',
-      label: 'Missing Transit Route',
-      from: edge.from,
-      to: edge.to
-    };
+  const evidence = [
+    ...missingEdges,
+    ...opening,
+    ...general
+  ];
 
-    explanation =
-      `There is no valid transport connection in the travel network ` +
-      `between attraction ${edge.from} and ${edge.to}.`;
-  }
-
-  // ------------------------------------------------------------
-  // 2. Opening hours
-  // ------------------------------------------------------------
-
-  else if (openingHourIssues.length > 0) {
-    const oh = openingHourIssues[0];
-
-    /*
-     * IMPORTANT FIX:
-     *
-     * opening_hour_violations already contains:
-     *
-     * poi_id: "poi_a34a401d"
-     *
-     * Preserve that ID inside binding_constraint.
-     *
-     * The relaxation engine needs this exact ID to construct:
-     *
-     * opening_hours_overrides: {
-     *   "poi_a34a401d": {
-     *      closes_at: "19:22"
-     *   }
-     * }
-     */
-    bindingConstraint = {
-      type: 'OPENING_HOURS',
-      label: 'Attraction Opening Hours',
-
-      // Critical field for relaxation.js
-      poi_id: oh.poi_id || null,
-
-      poi_name: oh.name || oh.poi_name || null,
-
-      opens_at: oh.opens_at || null,
-      closes_at: oh.closes_at || null,
-
-      arrival: oh.arrival || null,
-      departure: oh.departure || null
-    };
-
-    const poiLabel =
-      oh.name ||
-      oh.poi_name ||
-      oh.poi_id ||
-      'The selected attraction';
-
-    explanation =
-      `${poiLabel} closes at ${oh.closes_at}, ` +
-      `but your visit cannot be completed before ${oh.departure}.`;
-  }
-
-  // ------------------------------------------------------------
-  // 3. Time limit
-  // ------------------------------------------------------------
-
-  else if (
-    minRequiredTime !== Infinity &&
-    minRequiredTime > availableMins
-  ) {
-    const diff = minRequiredTime - availableMins;
-
-    bindingConstraint = {
-      type: 'TIME_LIMIT',
-      label: 'Available Time Window',
-      required_minutes: minRequiredTime,
-      available_minutes: availableMins,
-      excess_minutes: diff,
-      day_start,
-      day_end
-    };
-
-    explanation =
-      `Your selected must-see attractions require ` +
-      `${minRequiredTime} minutes (including activities and travel), ` +
-      `but your available day window from ${day_start} to ${day_end} ` +
-      `is only ${availableMins} minutes ` +
-      `(short by ${diff} minutes).`;
-  }
-
-  // ------------------------------------------------------------
-  // 4. Budget limit
-  // ------------------------------------------------------------
-
-  else if (
-    budgetCents !== null &&
-    minRequiredCostCents !== Infinity &&
-    minRequiredCostCents > budgetCents
-  ) {
-    const diffCents =
-      minRequiredCostCents - budgetCents;
-
-    bindingConstraint = {
-      type: 'BUDGET_LIMIT',
-      label: 'Budget Cap',
-      required_cost:
-        `₹${centsToMoney(minRequiredCostCents)}`,
-      available_budget:
-        `₹${centsToMoney(budgetCents)}`,
-      excess_cost:
-        `₹${centsToMoney(diffCents)}`
-    };
-
-    explanation =
-      `Your budget cap of ₹${centsToMoney(budgetCents)} ` +
-      `is lower than the minimum feasible itinerary cost of ` +
-      `₹${centsToMoney(minRequiredCostCents)} ` +
-      `(short by ₹${centsToMoney(diffCents)}).`;
-  }
-
-  // ------------------------------------------------------------
-  // 5. Carbon limit
-  // ------------------------------------------------------------
-
-  else if (
-    carbonCap !== null &&
-    minRequiredCarbon !== Infinity &&
-    minRequiredCarbon > carbonCap
-  ) {
-    const diffCarbon =
-      Number(
-        (minRequiredCarbon - carbonCap).toFixed(2)
-      );
-
-    bindingConstraint = {
-      type: 'CARBON_LIMIT',
-      label: 'Carbon Cap',
-      required_carbon_kg:
-        Number(minRequiredCarbon.toFixed(2)),
-      available_carbon_kg: carbonCap,
-      excess_carbon_kg: diffCarbon
-    };
-
-    explanation =
-      `Your carbon cap of ${carbonCap.toFixed(1)} kg CO₂ ` +
-      `is lower than the minimum achievable emissions of ` +
-      `${minRequiredCarbon.toFixed(1)} kg CO₂ for this route ` +
-      `(exceeded by ${diffCarbon} kg).`;
-  }
-
-  // ------------------------------------------------------------
-  // 6. General combined constraint conflict
-  // ------------------------------------------------------------
-
-  else {
-    bindingConstraint = {
-      type: 'MULTIPLE_CONSTRAINTS',
-      label: 'Combined Constraints',
-      available_minutes: availableMins
-    };
-
-    explanation =
-      `The selected ${must_see_poi_ids.length} attractions ` +
-      `cannot be scheduled simultaneously within the specified ` +
-      `time, budget, and carbon constraints.`;
-  }
-
-  // ------------------------------------------------------------
-  // Safety fallback:
-  //
-  // If opening-hours violation exists but somehow the selected
-  // opening issue does not contain poi_id, try to recover the ID
-  // from the general violations list by matching the POI name.
-  //
-  // This prevents the relaxation flow from breaking if the
-  // internal violation object changes slightly later.
-  // ------------------------------------------------------------
-
-  if (
-    bindingConstraint?.type === 'OPENING_HOURS' &&
-    !bindingConstraint.poi_id
-  ) {
-    const matchingViolation = allViolations.find(
-      violation =>
-        violation?.type === 'OPENING_HOURS' &&
-        (
-          (
-            bindingConstraint.poi_name &&
-            (
-              violation.poi_name === bindingConstraint.poi_name ||
-              violation.name === bindingConstraint.poi_name
-            )
-          ) ||
-          (
-            bindingConstraint.arrival &&
-            violation.arrival === bindingConstraint.arrival &&
-            bindingConstraint.departure &&
-            violation.departure === bindingConstraint.departure
-          )
-        ) &&
-        violation.poi_id
+  const start =
+    normalizeTimeToMinutes(
+      options.day_start || '09:00'
     );
 
-    if (matchingViolation) {
-      bindingConstraint.poi_id =
-        matchingViolation.poi_id;
-    }
+  const end =
+    normalizeTimeToMinutes(
+      options.day_end || '18:00'
+    );
+
+  const availableMins =
+    start !== null && end !== null
+      ? end - start
+      : null;
+
+  return {
+    evidence,
+    availableMins
+  };
+}
+
+function selectBindingConstraint(evidence = []) {
+  if (!evidence.length) return null;
+
+  const missingEdge =
+    evidence.find(
+      item => item.type === 'MISSING_TRAVEL_EDGE'
+    );
+
+  if (missingEdge) {
+    return {
+      ...missingEdge,
+      label: getConstraintLabel(missingEdge.type)
+    };
   }
+
+  const openingViolation =
+    evidence
+      .filter(
+        item => item.type === 'OPENING_HOURS'
+      )
+      .sort(
+        (a, b) =>
+          (b.excess_minutes || 0) -
+          (a.excess_minutes || 0)
+      )[0];
+
+  if (openingViolation) {
+    return {
+      ...openingViolation,
+      label: getConstraintLabel(
+        openingViolation.type
+      )
+    };
+  }
+
+  const hardViolation =
+    evidence.find(
+      item => item.severity === 'hard'
+    );
+
+  if (hardViolation) {
+    return {
+      ...hardViolation,
+      label: getConstraintLabel(
+        hardViolation.type
+      )
+    };
+  }
+
+  return {
+    ...evidence[0],
+    label: getConstraintLabel(
+      evidence[0].type
+    )
+  };
+}
+
+function buildExplanation(bindingConstraint) {
+  if (!bindingConstraint) {
+    return 'No feasible itinerary satisfies all required constraints.';
+  }
+
+  switch (bindingConstraint.type) {
+    case 'OPENING_HOURS': {
+      const name =
+        bindingConstraint.name ||
+        bindingConstraint.poi_name ||
+        bindingConstraint.poi_id ||
+        'The selected attraction';
+
+      const closesAt =
+        bindingConstraint.closes_at ||
+        'the configured closing time';
+
+      const departure =
+        bindingConstraint.departure ||
+        'the required departure time';
+
+      return (
+        `${name} closes at ${closesAt}, ` +
+        `but the visit cannot be completed before ${departure}.`
+      );
+    }
+
+    case 'MISSING_TRAVEL_EDGE':
+      return (
+        bindingConstraint.message ||
+        'No valid travel connection exists for the requested itinerary.'
+      );
+
+    case 'TIME_LIMIT':
+      return (
+        bindingConstraint.message ||
+        'The requested itinerary exceeds the available time.'
+      );
+
+    case 'BUDGET':
+      return (
+        bindingConstraint.message ||
+        'The requested itinerary exceeds the available budget.'
+      );
+
+    case 'CARBON':
+      return (
+        bindingConstraint.message ||
+        'The requested itinerary exceeds the carbon limit.'
+      );
+
+    case 'MUST_SEE':
+      return (
+        bindingConstraint.message ||
+        'The required must-see attractions cannot all be included in a feasible itinerary.'
+      );
+
+    case 'START':
+      return (
+        bindingConstraint.message ||
+        'The requested starting point cannot be satisfied.'
+      );
+
+    case 'END':
+      return (
+        bindingConstraint.message ||
+        'The requested ending point cannot be satisfied.'
+      );
+
+    case 'TRANSPORT_MODE':
+      return (
+        bindingConstraint.message ||
+        'The requested transport mode cannot satisfy the itinerary constraints.'
+      );
+
+    case 'CLOSED_DAY':
+      return (
+        bindingConstraint.message ||
+        'A required attraction is closed on the requested day.'
+      );
+
+    default:
+      return (
+        bindingConstraint.message ||
+        'No feasible itinerary satisfies all required constraints.'
+      );
+  }
+}
+
+function diagnoseInfeasibility(
+  options = {},
+  evaluatedAttempts = []
+) {
+  const allViolations =
+    collectViolations(evaluatedAttempts);
+
+  const diagnostic =
+    buildConstraintEvidence(
+      options,
+      evaluatedAttempts
+    );
+
+  const selected =
+    selectBindingConstraint(
+      diagnostic.evidence
+    );
+
+  let bindingConstraint = null;
+
+  if (selected) {
+    bindingConstraint = {
+      ...selected
+    };
+  }
+
+  if (!bindingConstraint) {
+    bindingConstraint = {
+      type: 'MULTIPLE_CONSTRAINTS',
+      label: 'Multiple Constraints',
+      available_minutes:
+        diagnostic.availableMins
+    };
+  }
+
+  const explanation =
+    buildExplanation(bindingConstraint);
 
   return {
     binding_constraint: bindingConstraint,
@@ -348,5 +388,9 @@ function diagnoseInfeasibility(options, evaluatedAttempts = []) {
 }
 
 module.exports = {
-  diagnoseInfeasibility
+  diagnoseInfeasibility,
+  collectViolations,
+  buildConstraintEvidence,
+  selectBindingConstraint,
+  buildExplanation
 };

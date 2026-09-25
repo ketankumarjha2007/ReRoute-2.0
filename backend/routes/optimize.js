@@ -15,6 +15,10 @@ const {
 } = require('../optimizer/relaxation');
 
 const {
+  verifyItinerary
+} = require('../optimizer/verification');
+
+const {
   generateExplanation
 } = require('../ai/explainer');
 
@@ -24,6 +28,7 @@ const {
 // ============================================================
 
 router.post('/', async (req, res) => {
+
   try {
 
     // ----------------------------------------------------------
@@ -31,6 +36,7 @@ router.post('/', async (req, res) => {
     // ----------------------------------------------------------
 
     const {
+
       city_id,
 
       day_start,
@@ -58,41 +64,44 @@ router.post('/', async (req, res) => {
 
       max_activities = 6,
 
-      // Used internally by relaxation engine.
+      // Used internally by the relaxation engine.
       opening_hours_overrides = {}
 
     } = req.body;
 
 
-    // ----------------------------------------------------------
-    // Required city
-    // ----------------------------------------------------------
+    // ==========================================================
+    // REQUIRED CITY
+    // ==========================================================
 
     if (!city_id) {
+
       return res.status(400).json({
+
         success: false,
+
         error: {
+
           code: 'INVALID_INPUT',
-          message: 'city_id is required.'
+
+          message:
+            'city_id is required.'
+
         }
+
       });
     }
 
 
-    // ----------------------------------------------------------
-    // Normalize time fields
-    //
-    // Organizer:
-    // day_start_time / day_end_time
-    //
-    // Internal optimizer:
-    // day_start / day_end
-    // ----------------------------------------------------------
+    // ==========================================================
+    // NORMALIZE TIME FIELDS
+    // ==========================================================
 
     const normalizedDayStart =
       day_start ??
       day_start_time ??
       '09:00';
+
 
     const normalizedDayEnd =
       day_end ??
@@ -100,9 +109,9 @@ router.post('/', async (req, res) => {
       '18:00';
 
 
-    // ----------------------------------------------------------
-    // Normalize arrays
-    // ----------------------------------------------------------
+    // ==========================================================
+    // NORMALIZE ARRAYS
+    // ==========================================================
 
     const normalizeArray = (value) => {
 
@@ -110,40 +119,56 @@ router.post('/', async (req, res) => {
         return value;
       }
 
+
       if (
         typeof value === 'string' &&
         value.trim() !== ''
       ) {
+
         return value
           .split(',')
-          .map(x => x.trim())
+          .map(
+            item => item.trim()
+          )
           .filter(Boolean);
       }
+
 
       return [];
     };
 
 
     const normalizedMustSee =
-      normalizeArray(must_see_poi_ids);
+      normalizeArray(
+        must_see_poi_ids
+      );
+
 
     const normalizedCandidates =
       candidate_poi_ids === null ||
-        candidate_poi_ids === undefined
+      candidate_poi_ids === undefined
+
         ? null
-        : normalizeArray(candidate_poi_ids);
+
+        : normalizeArray(
+            candidate_poi_ids
+          );
 
 
     const normalizedModes =
       allowed_modes === null ||
-        allowed_modes === undefined
+      allowed_modes === undefined
+
         ? null
-        : normalizeArray(allowed_modes);
+
+        : normalizeArray(
+            allowed_modes
+          );
 
 
-    // ----------------------------------------------------------
-    // Build optimizer options
-    // ----------------------------------------------------------
+    // ==========================================================
+    // BUILD OPTIMIZER OPTIONS
+    // ==========================================================
 
     const options = {
 
@@ -176,25 +201,91 @@ router.post('/', async (req, res) => {
 
       max_activities,
 
-      // IMPORTANT:
-      // Used only during a hypothetical relaxation run.
       opening_hours_overrides
+
     };
 
 
     // ==========================================================
-    // RUN NORMAL OPTIMIZATION
+    // RUN DETERMINISTIC OPTIMIZATION
     // ==========================================================
 
     const result =
-      await optimizeItinerary(options);
+      await optimizeItinerary(
+        options
+      );
 
 
     // ==========================================================
-    // FEASIBLE
+    // FEASIBLE RESULT
     // ==========================================================
 
     if (result.feasible) {
+
+
+      // --------------------------------------------------------
+      // INDEPENDENT MATHEMATICAL VERIFICATION
+      // --------------------------------------------------------
+      //
+      // IMPORTANT:
+      //
+      // This does NOT use Groq.
+      //
+      // The verifier independently reads the source data and
+      // recalculates:
+      //
+      // - POI cost
+      // - travel cost
+      // - activity time
+      // - travel time
+      // - waiting time
+      // - POI carbon
+      // - travel carbon
+      // - total cost
+      // - total time
+      // - total carbon
+      // - hard constraints
+      //
+      // --------------------------------------------------------
+
+      const verification =
+        await verifyItinerary(
+
+          result,
+
+          {
+
+            day_start:
+              normalizedDayStart,
+
+            day_end:
+              normalizedDayEnd,
+
+            budget_cap,
+
+            carbon_cap_kg,
+
+            must_see_poi_ids:
+              normalizedMustSee,
+
+            start_poi_id,
+
+            end_poi_id,
+
+            allowed_modes:
+              normalizedModes
+
+          }
+
+        );
+
+
+      // --------------------------------------------------------
+      // Generate normal deterministic explanation.
+      //
+      // This explanation is NOT responsible for deciding
+      // mathematical correctness.
+      // --------------------------------------------------------
 
       const explanation =
         generateExplanation(
@@ -202,11 +293,51 @@ router.post('/', async (req, res) => {
           weights
         );
 
+
+      // ========================================================
+      // VERIFIED FEASIBLE RESPONSE
+      // ========================================================
+
       return res.json({
 
         success: true,
 
         feasible: true,
+
+
+        // ------------------------------------------------------
+        // Mathematical verification
+        // ------------------------------------------------------
+
+        verification: {
+
+          verified:
+            verification.verified,
+
+          checks:
+            verification.checks,
+
+          errors:
+            verification.errors,
+
+          warnings:
+            verification.warnings,
+
+          recomputed:
+            verification.recomputed,
+
+          source:
+            verification.source,
+
+          verifier_version:
+            verification.verifier_version
+
+        },
+
+
+        // ------------------------------------------------------
+        // Original optimizer result
+        // ------------------------------------------------------
 
         summary:
           result.summary,
@@ -232,46 +363,88 @@ router.post('/', async (req, res) => {
         explanation
 
       });
+
     }
 
 
     // ==========================================================
-    // INFEASIBLE
+    // INFEASIBLE RESULT
     // ==========================================================
 
     const diagnosis =
       diagnoseInfeasibility(
+
         options,
+
         result.evaluated_attempts || []
+
       );
 
+
+    // ==========================================================
+    // OPENING-HOURS POI ID SAFETY FIX
+    // ==========================================================
+    //
+    // If the binding constraint is opening hours but the
+    // diagnostic did not preserve the POI ID, recover it from
+    // the actual violation.
+    //
+    // ==========================================================
+
     if (
+
       diagnosis.binding_constraint &&
-      diagnosis.binding_constraint.type === 'OPENING_HOURS' &&
+
+      diagnosis.binding_constraint.type ===
+        'OPENING_HOURS' &&
+
       !diagnosis.binding_constraint.poi_id
+
     ) {
+
       const openingViolation =
-        (diagnosis.violations || []).find(
+        (
+          diagnosis.violations || []
+        ).find(
+
           violation =>
-            violation.type === 'OPENING_HOURS' &&
+
+            violation.type ===
+              'OPENING_HOURS' &&
+
             violation.poi_id
+
         );
 
+
       if (openingViolation) {
+
         diagnosis.binding_constraint.poi_id =
           openingViolation.poi_id;
+
       }
+
     }
+
 
     // ==========================================================
     // EXACTLY-ONE-CONSTRAINT RELAXATION
     // ==========================================================
+    //
+    // The relaxation engine receives the deterministic binding
+    // constraint and tries changing exactly one constraint.
+    //
+    // ==========================================================
 
     const relaxation =
       await findSingleConstraintRelaxation(
+
         options,
+
         diagnosis.binding_constraint,
+
         optimizeItinerary
+
       );
 
 
@@ -279,13 +452,18 @@ router.post('/', async (req, res) => {
     // BUILD RELAXED PLAN RESPONSE
     // ==========================================================
 
-    let relaxedPlanData = null;
+    let relaxedPlanData =
+      null;
 
 
     if (
+
       relaxation &&
+
       relaxation.plan &&
+
       relaxation.plan.feasible
+
     ) {
 
       relaxedPlanData = {
@@ -327,6 +505,7 @@ router.post('/', async (req, res) => {
           relaxation.plan.transfers
 
       };
+
     }
 
 
@@ -339,43 +518,76 @@ router.post('/', async (req, res) => {
       success: true,
 
       // IMPORTANT:
-      // Original problem remains infeasible.
+      // The ORIGINAL problem is still infeasible.
+      //
+      // The relaxed plan is only a counterfactual alternative.
+
       feasible: false,
+
+
+      // --------------------------------------------------------
+      // Deterministic binding constraint
+      // --------------------------------------------------------
 
       binding_constraint:
         diagnosis.binding_constraint,
 
+
+      // --------------------------------------------------------
+      // Deterministic explanation
+      // --------------------------------------------------------
+
       explanation:
         diagnosis.explanation,
+
+
+      // --------------------------------------------------------
+      // All detected violations
+      // --------------------------------------------------------
 
       violations:
         diagnosis.violations,
 
+
+      // --------------------------------------------------------
+      // Single-constraint relaxation summary
+      // --------------------------------------------------------
+
       relaxation:
+
         relaxedPlanData
+
           ? {
-            constraint:
-              relaxedPlanData.constraint_name,
 
-            action:
-              relaxedPlanData.action,
+              constraint:
+                relaxedPlanData.constraint_name,
 
-            poi_name:
-              relaxedPlanData.poi_name,
+              action:
+                relaxedPlanData.action,
 
-            original:
-              relaxedPlanData.original_value,
+              poi_name:
+                relaxedPlanData.poi_name,
 
-            relaxed:
-              relaxedPlanData.relaxed_value,
+              original:
+                relaxedPlanData.original_value,
 
-            difference:
-              relaxedPlanData.difference,
+              relaxed:
+                relaxedPlanData.relaxed_value,
 
-            description:
-              relaxedPlanData.description
-          }
+              difference:
+                relaxedPlanData.difference,
+
+              description:
+                relaxedPlanData.description
+
+            }
+
           : null,
+
+
+      // --------------------------------------------------------
+      // Full relaxed plan
+      // --------------------------------------------------------
 
       relaxed_plan:
         relaxedPlanData
@@ -388,6 +600,7 @@ router.post('/', async (req, res) => {
       'Error optimizing itinerary:',
       error
     );
+
 
     return res.status(500).json({
 
@@ -404,7 +617,9 @@ router.post('/', async (req, res) => {
       }
 
     });
+
   }
+
 });
 
 

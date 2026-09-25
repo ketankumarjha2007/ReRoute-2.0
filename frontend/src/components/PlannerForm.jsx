@@ -16,8 +16,8 @@ import {
   Flag,
   Footprints,
   Car,
-  Bus,
-  Train
+
+
 } from 'lucide-react';
 
 import { planMyDay } from '../services/api';
@@ -671,6 +671,10 @@ export default function PlannerForm({
   // TRANSPORT ICON
   // ============================================================
 
+  // ReRoute currently supports only transport modes
+  // that are backed by the APS-09 travel matrix.
+  // ReRoute currently supports only transport modes
+  // backed by the APS-09 travel matrix.
   const transportOptions = [
     {
       id: 'walk',
@@ -681,16 +685,6 @@ export default function PlannerForm({
       id: 'cab',
       label: t.cab,
       icon: Car
-    },
-    {
-      id: 'bus',
-      label: t.bus,
-      icon: Bus
-    },
-    {
-      id: 'metro',
-      label: t.metro,
-      icon: Train
     }
   ];
 
@@ -1686,3 +1680,5 @@ export default function PlannerForm({
     </div>
   );
 }
+
+

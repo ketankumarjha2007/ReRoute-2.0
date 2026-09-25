@@ -1,33 +1,89 @@
 /**
  * Abstract AI Client for ReRoute
+ *
  * Built for Groq + GPT-OSS (OpenAI-compatible) with multi-provider support:
  * - Groq (openai/gpt-oss-20b, llama-3.3-70b-versatile, etc.)
  * - OpenAI-compatible endpoints (OpenRouter, Together, Local Ollama)
- * - Google Gemini (gemini-1.5-flash)
+ * - Google Gemini
+ *
+ * AI intent extraction is protected by the ReRoute AI Output Contract.
+ *
+ * IMPORTANT:
+ * The AI is NOT the source of truth for:
+ * - itinerary cost
+ * - travel time
+ * - carbon
+ * - feasibility
+ * - opening hours
+ * - route availability
+ *
+ * Those are handled by the deterministic ReRoute optimizer
+ * and APS-09 database.
  *
  * Configurable via environment variables:
- *   AI_API_KEY
- *   AI_BASE_URL (defaults to https://api.groq.com/openai/v1)
- *   AI_MODEL (defaults to openai/gpt-oss-20b)
+ * AI_API_KEY
+ * AI_BASE_URL
+ * AI_MODEL
+ */
+
+const {
+  validateAiOutput
+} = require('./outputContract');
+
+
+/**
+ * ============================================================
+ * AI CONFIGURATION
+ * ============================================================
  */
 
 function getAiConfig() {
-  const apiKey = (process.env.AI_API_KEY || process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY || '').trim();
-  const baseUrl = (process.env.AI_BASE_URL || 'https://api.groq.com/openai/v1').trim();
-  const model = (process.env.AI_MODEL || 'openai/gpt-oss-20b').trim();
+
+  const apiKey = (
+    process.env.AI_API_KEY ||
+    process.env.GROQ_API_KEY ||
+    process.env.OPENAI_API_KEY ||
+    ''
+  ).trim();
+
+  const baseUrl = (
+    process.env.AI_BASE_URL ||
+    'https://api.groq.com/openai/v1'
+  ).trim();
+
+  const model = (
+    process.env.AI_MODEL ||
+    'openai/gpt-oss-20b'
+  ).trim();
+
 
   let provider = 'OpenAI-Compatible';
+
+
   if (baseUrl.includes('groq.com')) {
+
     provider = 'Groq';
+
   } else if (baseUrl.includes('openai.com')) {
+
     provider = 'OpenAI';
+
   } else if (baseUrl.includes('openrouter.ai')) {
+
     provider = 'OpenRouter';
+
   } else if (baseUrl.includes('together.xyz')) {
+
     provider = 'Together AI';
-  } else if (baseUrl.includes('googleapis.com') || model.startsWith('gemini')) {
+
+  } else if (
+    baseUrl.includes('googleapis.com') ||
+    model.startsWith('gemini')
+  ) {
+
     provider = 'Gemini';
   }
+
 
   return {
     apiKey,
@@ -38,425 +94,1347 @@ function getAiConfig() {
   };
 }
 
+
 /**
- * Returns safe AI status without exposing secrets
+ * ============================================================
+ * AI STATUS
+ * ============================================================
+ *
+ * Returns safe AI status without exposing secrets.
  */
+
 function getAiStatus() {
-  const config = getAiConfig();
+
+  const config =
+    getAiConfig();
+
   return {
+
     success: true,
-    configured: config.configured,
-    provider: config.provider,
-    model: config.model
+
+    configured:
+      config.configured,
+
+    provider:
+      config.provider,
+
+    model:
+      config.model
   };
 }
 
+
 /**
- * Tests connectivity to the configured AI model with a tiny request
+ * ============================================================
+ * TEST AI CONNECTION
+ * ============================================================
  */
+
 async function testAiConnection() {
-  const config = getAiConfig();
+
+  const config =
+    getAiConfig();
+
 
   if (!config.configured) {
+
     return {
+
       success: false,
+
       configured: false,
-      provider: config.provider,
-      model: config.model,
+
+      provider:
+        config.provider,
+
+      model:
+        config.model,
+
       error: {
-        code: 'NOT_CONFIGURED',
-        message: 'AI_API_KEY is not configured in backend environment.'
+
+        code:
+          'NOT_CONFIGURED',
+
+        message:
+          'AI_API_KEY is not configured in backend environment.'
       }
     };
   }
 
+
   try {
-    const isGemini = config.provider === 'Gemini';
+
+    const isGemini =
+      config.provider === 'Gemini';
+
     let shortResponse = '';
 
+
+    /*
+     * --------------------------------------------------------
+     * Gemini
+     * --------------------------------------------------------
+     */
+
     if (isGemini) {
-      const endpoint = config.baseUrl.includes('googleapis.com')
-        ? `${config.baseUrl}?key=${config.apiKey}`
-        : `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`;
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: 'Respond with exactly: ReRoute AI is ready.' }] }],
-          generationConfig: { maxOutputTokens: 20, temperature: 0.1 }
-        }),
-        signal: AbortSignal.timeout(6000)
-      });
+      const endpoint =
+        config.baseUrl.includes(
+          'googleapis.com'
+        )
+          ? `${config.baseUrl}?key=${config.apiKey}`
+          : `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`;
+
+
+      const res =
+        await fetch(
+          endpoint,
+          {
+
+            method: 'POST',
+
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
+
+            body: JSON.stringify({
+
+              contents: [
+                {
+                  parts: [
+                    {
+                      text:
+                        'Respond with exactly: ReRoute AI is ready.'
+                    }
+                  ]
+                }
+              ],
+
+              generationConfig: {
+                maxOutputTokens: 20,
+                temperature: 0.1
+              }
+
+            }),
+
+            signal:
+              AbortSignal.timeout(6000)
+          }
+        );
+
 
       if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`Gemini API error (${res.status}): ${errText.slice(0, 150)}`);
+
+        const errText =
+          await res.text();
+
+        throw new Error(
+          `Gemini API error (${res.status}): ${errText.slice(0, 150)}`
+        );
       }
 
-      const data = await res.json();
-      shortResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Connected';
+
+      const data =
+        await res.json();
+
+      shortResponse =
+        data?.candidates?.[0]
+          ?.content?.parts?.[0]
+          ?.text
+          ?.trim() ||
+        'Connected';
+
+
+    /*
+     * --------------------------------------------------------
+     * OpenAI-compatible providers
+     * --------------------------------------------------------
+     */
+
     } else {
-      const endpoint = config.baseUrl.endsWith('/chat/completions')
-        ? config.baseUrl
-        : `${config.baseUrl.replace(/\/$/, '')}/chat/completions`;
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.apiKey}`
-        },
-        body: JSON.stringify({
-          model: config.model,
-          temperature: 0.1,
-          max_tokens: 30,
-          messages: [
-            { role: 'user', content: 'Say "ReRoute AI is online." in 5 words or fewer.' }
-          ]
-        }),
-        signal: AbortSignal.timeout(7000)
-      });
+      const endpoint =
+        config.baseUrl.endsWith(
+          '/chat/completions'
+        )
+          ? config.baseUrl
+          : `${config.baseUrl.replace(/\/$/, '')}/chat/completions`;
+
+
+      const res =
+        await fetch(
+          endpoint,
+          {
+
+            method: 'POST',
+
+            headers: {
+
+              'Content-Type':
+                'application/json',
+
+              'Authorization':
+                `Bearer ${config.apiKey}`
+            },
+
+            body: JSON.stringify({
+
+              model:
+                config.model,
+
+              temperature:
+                0.1,
+
+              max_tokens:
+                30,
+
+              messages: [
+
+                {
+                  role: 'user',
+
+                  content:
+                    'Say "ReRoute AI is online." in 5 words or fewer.'
+                }
+
+              ]
+
+            }),
+
+            signal:
+              AbortSignal.timeout(7000)
+          }
+        );
+
 
       if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`${config.provider} API error (${res.status}): ${errText.slice(0, 180)}`);
+
+        const errText =
+          await res.text();
+
+        throw new Error(
+          `${config.provider} API error (${res.status}): ${errText.slice(0, 180)}`
+        );
       }
 
-      const data = await res.json();
-      shortResponse = data?.choices?.[0]?.message?.content?.trim() || 'Connected';
+
+      const data =
+        await res.json();
+
+      shortResponse =
+        data?.choices?.[0]
+          ?.message
+          ?.content
+          ?.trim() ||
+        'Connected';
     }
 
+
     return {
+
       success: true,
-      provider: config.provider,
-      model: config.model,
-      short_response: shortResponse
+
+      provider:
+        config.provider,
+
+      model:
+        config.model,
+
+      short_response:
+        shortResponse
     };
+
+
   } catch (err) {
+
     return {
+
       success: false,
-      provider: config.provider,
-      model: config.model,
+
+      provider:
+        config.provider,
+
+      model:
+        config.model,
+
       error: {
-        code: 'AI_CONNECTION_FAILED',
-        message: err.message
+
+        code:
+          'AI_CONNECTION_FAILED',
+
+        message:
+          err.message
       }
     };
   }
 }
 
+
 /**
- * Extracts structured intent from natural language using the configured LLM.
- * Returns { success: true, parsed: {...} } or { success: false, fallback: true, error: string }
+ * ============================================================
+ * EXTRACT STRUCTURED TRAVEL INTENT
+ * ============================================================
+ *
+ * IMPORTANT:
+ *
+ * The LLM ONLY extracts user intent.
+ *
+ * It does NOT:
+ * - calculate cost
+ * - calculate carbon
+ * - calculate travel time
+ * - decide feasibility
+ * - create an itinerary
+ *
+ * After JSON parsing, the output is passed through
+ * validateAiOutput().
+ *
+ * Invalid AI output is rejected instead of silently
+ * being corrected.
  */
-async function extractIntentWithLlm(promptText, activeCityNames = []) {
-  const config = getAiConfig();
+
+async function extractIntentWithLlm(
+  promptText,
+  activeCityNames = []
+) {
+
+  const config =
+    getAiConfig();
+
+
+  /*
+   * ----------------------------------------------------------
+   * No API key
+   * ----------------------------------------------------------
+   */
 
   if (!config.configured) {
+
     return {
+
       success: false,
+
       fallback: true,
-      reason: 'NO_API_KEY',
-      error: 'AI_API_KEY not set. Utilizing deterministic fallback parser.'
+
+      reason:
+        'NO_API_KEY',
+
+      error:
+        'AI_API_KEY not set. Utilizing deterministic fallback parser.'
     };
   }
 
-  const systemInstructions = `You are ReRoute's Travel Intent Extraction Engine.
-Extract traveler constraints and priorities from their prompt into strict JSON.
-Available database cities: ${activeCityNames.slice(0, 40).join(', ')}.
 
-Return ONLY valid JSON matching this schema, with no markdown code fences and no conversational commentary:
+  /*
+   * ----------------------------------------------------------
+   * AI OUTPUT CONTRACT
+   * ----------------------------------------------------------
+   */
+
+  const systemInstructions = `
+You are ReRoute's Travel Intent Extraction Engine.
+
+Your ONLY job is to understand the user's travel preferences
+and convert them into structured JSON.
+
+You are NOT the itinerary optimizer.
+
+You MUST NOT calculate or invent:
+
+- itinerary cost
+- travel cost
+- travel duration
+- carbon emissions
+- opening hours
+- route availability
+- feasibility
+- final itinerary
+- stops
+- transfers
+- scores
+
+Those values are calculated by the ReRoute backend using the
+official APS-09 database and deterministic optimizer.
+
+Available database cities:
+
+${activeCityNames
+  .slice(0, 40)
+  .join(', ')}
+
+Return ONLY valid JSON.
+
+Do not use markdown.
+Do not use code fences.
+Do not add explanations.
+
+Use EXACTLY this schema:
+
 {
-  "city_name": string (most relevant matched city, or null if unmentioned),
-  "budget_cap": number or null (budget ceiling in INR if mentioned),
-  "carbon_cap_kg": number or null (carbon ceiling in kg if mentioned),
-  "day_start": string ("HH:MM" 24hr format, default "09:00"),
-  "day_end": string ("HH:MM" 24hr format, default "18:00"),
+  "city_name": string or null,
+
+  "budget_cap": string or null,
+
+  "carbon_cap_kg": number or null,
+
+  "day_start": "HH:MM",
+
+  "day_end": "HH:MM",
+
   "weights": {
-    "cost": number (0.05 to 0.90, sum must be 1.0),
-    "time": number (0.05 to 0.90),
-    "carbon": number (0.05 to 0.90)
+    "cost": number,
+    "time": number,
+    "carbon": number
   },
-  "must_see_keywords": array of strings (names of specific places, monuments, or categories mentioned, e.g. ["palace", "park", "temple"]),
-  "theme": string (short 3-5 word title for the day style, e.g. "Low Carbon Heritage")
-}`;
+
+  "must_see_keywords": [],
+
+  "allowed_modes": [],
+
+  "theme": string
+}
+
+Rules:
+
+1. budget_cap must be a STRING containing INR.
+   Example: "2500.00"
+
+2. Never return estimated_cost.
+
+3. Never return total_cost.
+
+4. Never return itinerary cost.
+
+5. Never return carbon emissions for an itinerary.
+
+6. Never return travel duration.
+
+7. Never return feasibility.
+
+8. Never return an itinerary.
+
+9. Never return stops.
+
+10. Never return transfers.
+
+11. Never invent POI IDs.
+
+12. Return places as natural-language keywords
+    inside must_see_keywords.
+
+13. allowed_modes may contain ONLY:
+    "walk"
+    "cab"
+
+14. If the user does not specify a budget,
+    return null.
+
+15. If the user does not specify a carbon cap,
+    return null.
+
+16. Weights must be non-negative and sum to 1.0.
+
+17. day_start and day_end must use HH:MM
+    24-hour format.
+
+18. Extract user preferences only.
+
+19. Do not make factual claims about POI prices,
+    carbon, travel times or opening hours.
+
+20. Do not generate final itinerary metrics.
+`;
+
 
   try {
+
     let rawContent = '';
-    const isGemini = config.provider === 'Gemini';
+
+    const isGemini =
+      config.provider === 'Gemini';
+
+
+    /*
+     * ========================================================
+     * GEMINI
+     * ========================================================
+     */
 
     if (isGemini) {
-      const endpoint = config.baseUrl.includes('googleapis.com')
-        ? `${config.baseUrl}?key=${config.apiKey}`
-        : `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`;
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: `${systemInstructions}\n\nTraveler prompt: "${promptText}"` }]
-          }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 600 }
-        }),
-        signal: AbortSignal.timeout(8000)
-      });
+      const endpoint =
+        config.baseUrl.includes(
+          'googleapis.com'
+        )
+          ? `${config.baseUrl}?key=${config.apiKey}`
+          : `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`;
+
+
+      const res =
+        await fetch(
+          endpoint,
+          {
+
+            method: 'POST',
+
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
+
+            body: JSON.stringify({
+
+              contents: [
+
+                {
+
+                  parts: [
+
+                    {
+                      text:
+                        `${systemInstructions}\n\nTraveler prompt:\n${promptText}`
+                    }
+
+                  ]
+
+                }
+
+              ],
+
+              generationConfig: {
+
+                temperature:
+                  0.1,
+
+                maxOutputTokens:
+                  600
+              }
+
+            }),
+
+            signal:
+              AbortSignal.timeout(8000)
+          }
+        );
+
 
       if (!res.ok) {
-        const errBody = await res.text();
-        throw new Error(`Gemini API error (${res.status}): ${errBody.slice(0, 150)}`);
+
+        const errBody =
+          await res.text();
+
+        throw new Error(
+          `Gemini API error (${res.status}): ${errBody.slice(0, 150)}`
+        );
       }
 
-      const data = await res.json();
-      rawContent = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+      const data =
+        await res.json();
+
+      rawContent =
+        data?.candidates?.[0]
+          ?.content
+          ?.parts?.[0]
+          ?.text ||
+        '';
+
+
+    /*
+     * ========================================================
+     * OPENAI-COMPATIBLE PROVIDERS
+     * ========================================================
+     */
+
     } else {
-      const endpoint = config.baseUrl.endsWith('/chat/completions')
-        ? config.baseUrl
-        : `${config.baseUrl.replace(/\/$/, '')}/chat/completions`;
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.apiKey}`
-        },
-        body: JSON.stringify({
-          model: config.model,
-          temperature: 0.1,
-          messages: [
-            { role: 'system', content: systemInstructions },
-            { role: 'user', content: promptText }
-          ]
-        }),
-        signal: AbortSignal.timeout(8000)
-      });
+      const endpoint =
+        config.baseUrl.endsWith(
+          '/chat/completions'
+        )
+          ? config.baseUrl
+          : `${config.baseUrl.replace(/\/$/, '')}/chat/completions`;
+
+
+      const res =
+        await fetch(
+          endpoint,
+          {
+
+            method: 'POST',
+
+            headers: {
+
+              'Content-Type':
+                'application/json',
+
+              'Authorization':
+                `Bearer ${config.apiKey}`
+            },
+
+            body: JSON.stringify({
+
+              model:
+                config.model,
+
+              temperature:
+                0.1,
+
+              messages: [
+
+                {
+                  role: 'system',
+
+                  content:
+                    systemInstructions
+                },
+
+                {
+                  role: 'user',
+
+                  content:
+                    promptText
+                }
+
+              ]
+
+            }),
+
+            signal:
+              AbortSignal.timeout(8000)
+          }
+        );
+
 
       if (!res.ok) {
-        const errBody = await res.text();
-        throw new Error(`${config.provider} API error (${res.status}): ${errBody.slice(0, 150)}`);
+
+        const errBody =
+          await res.text();
+
+        throw new Error(
+          `${config.provider} API error (${res.status}): ${errBody.slice(0, 150)}`
+        );
       }
 
-      const data = await res.json();
-      rawContent = data?.choices?.[0]?.message?.content || '';
+
+      const data =
+        await res.json();
+
+      rawContent =
+        data?.choices?.[0]
+          ?.message
+          ?.content ||
+        '';
     }
 
-    // Clean JSON response (strip markdown fences if model returned them)
-    const cleanedJson = rawContent
-      .replace(/```json/gi, '')
-      .replace(/```/g, '')
-      .trim();
 
-    const parsed = JSON.parse(cleanedJson);
+    /*
+     * ========================================================
+     * CLEAN MODEL OUTPUT
+     * ========================================================
+     *
+     * We allow the model to accidentally wrap JSON in
+     * markdown fences, but nothing else is silently corrected.
+     * ========================================================
+     */
 
-    // Validate and sanitize parsed fields
-    if (!parsed || typeof parsed !== 'object') {
-      throw new Error('AI returned non-object JSON');
-    }
+    const cleanedJson =
+      rawContent
+        .replace(/```json/gi, '')
+        .replace(/```/g, '')
+        .trim();
 
-    // Normalize weights to sum exactly to 1.0
-    if (parsed.weights && typeof parsed.weights === 'object') {
-      const c = Math.max(0.01, Number(parsed.weights.cost) || 0.33);
-      const t = Math.max(0.01, Number(parsed.weights.time) || 0.33);
-      const carb = Math.max(0.01, Number(parsed.weights.carbon) || 0.34);
-      const sum = c + t + carb;
-      parsed.weights = {
-        cost: Number((c / sum).toFixed(2)),
-        time: Number((t / sum).toFixed(2)),
-        carbon: Number((carb / sum).toFixed(2))
+
+    /*
+     * ========================================================
+     * PARSE JSON
+     * ========================================================
+     */
+
+    let parsed;
+
+    try {
+
+      parsed =
+        JSON.parse(
+          cleanedJson
+        );
+
+    } catch (jsonError) {
+
+      console.warn(
+        '[AI Client] AI returned invalid JSON:',
+        rawContent
+      );
+
+      return {
+
+        success: false,
+
+        fallback: true,
+
+        reason:
+          'AI_INVALID_JSON',
+
+        error:
+          'The AI returned invalid JSON.',
+
+        validation: {
+
+          valid: false,
+
+          errors: [
+            'AI response could not be parsed as JSON'
+          ],
+
+          warnings: []
+        }
       };
-      // Correct any rounding difference to ensure exact 1.00 sum
-      const diff = 1.00 - (parsed.weights.cost + parsed.weights.time + parsed.weights.carbon);
-      if (Math.abs(diff) > 0.001) {
-        parsed.weights.carbon = Number((parsed.weights.carbon + diff).toFixed(2));
-      }
-    } else {
-      parsed.weights = { cost: 0.33, time: 0.33, carbon: 0.34 };
     }
 
-    // Sanitize time format
-    const timeRegex = /^\d{1,2}:\d{2}$/;
-    if (!parsed.day_start || !timeRegex.test(parsed.day_start)) {
-      parsed.day_start = '09:00';
-    }
-    if (!parsed.day_end || !timeRegex.test(parsed.day_end)) {
-      parsed.day_end = '18:00';
+
+    /*
+     * ========================================================
+     * AI OUTPUT CONTRACT VALIDATION
+     * ========================================================
+     *
+     * THIS IS THE IMPORTANT PART.
+     *
+     * We do NOT silently repair:
+     * - invalid weights
+     * - invalid time
+     * - invalid budget
+     * - invalid carbon
+     * - unsupported modes
+     * - forbidden fields
+     *
+     * We reject the response instead.
+     * ========================================================
+     */
+
+    const validation =
+      validateAiOutput(
+        parsed
+      );
+
+
+    if (!validation.valid) {
+
+      console.warn(
+        '[AI Client] AI output rejected by contract:',
+        validation.errors
+      );
+
+
+      return {
+
+        success: false,
+
+        fallback: true,
+
+        reason:
+          'AI_OUTPUT_CONTRACT_FAILED',
+
+        error:
+          'The AI response did not satisfy the ReRoute AI Output Contract.',
+
+        validation: {
+
+          valid: false,
+
+          errors:
+            validation.errors,
+
+          warnings:
+            validation.warnings
+        }
+      };
     }
 
-    // Sanitize numeric caps
-    if (parsed.budget_cap !== null && parsed.budget_cap !== undefined) {
-      const b = Number(parsed.budget_cap);
-      parsed.budget_cap = (!isNaN(b) && b > 0) ? b : null;
-    }
-    if (parsed.carbon_cap_kg !== null && parsed.carbon_cap_kg !== undefined) {
-      const cb = Number(parsed.carbon_cap_kg);
-      parsed.carbon_cap_kg = (!isNaN(cb) && cb > 0) ? cb : null;
-    }
 
-    if (!Array.isArray(parsed.must_see_keywords)) {
-      parsed.must_see_keywords = [];
-    }
+    /*
+     * ========================================================
+     * SUCCESS
+     * ========================================================
+     *
+     * At this point:
+     *
+     * JSON is valid
+     * +
+     * schema is valid
+     * +
+     * values are within allowed format/rules
+     *
+     * BUT:
+     *
+     * This does NOT mean the AI has generated a valid
+     * itinerary.
+     *
+     * It has only generated VALID USER INTENT.
+     * ========================================================
+     */
 
     return {
+
       success: true,
+
       fallback: false,
-      provider: config.provider,
-      model: config.model,
-      parsed
+
+      provider:
+        config.provider,
+
+      model:
+        config.model,
+
+      parsed,
+
+      validation: {
+
+        valid: true,
+
+        errors: [],
+
+        warnings:
+          validation.warnings
+      }
     };
+
 
   } catch (err) {
-    console.warn(`[AI Client] LLM intent extraction failed (${err.message}). Falling back safely.`);
+
+    console.warn(
+      `[AI Client] LLM intent extraction failed (${err.message}). Falling back safely.`
+    );
+
+
     return {
+
       success: false,
+
       fallback: true,
-      error: err.message
+
+      reason:
+        'AI_REQUEST_FAILED',
+
+      error:
+        err.message
     };
   }
 }
 
+
 /**
- * Generates an engaging 2-3 sentence grounded narrative for a calculated itinerary.
- * Feeds actual deterministic metrics (stops, cost, time, carbon) to the LLM.
+ * ============================================================
+ * GROUNDED NARRATIVE GENERATION
+ * ============================================================
+ *
+ * This function receives deterministic optimizer output.
+ *
+ * The AI is ONLY allowed to explain the already-calculated
+ * result.
  */
-async function generateNarrativeWithLlm(cityName, stopsList, summary, promptText) {
-  const config = getAiConfig();
-  if (!config.configured) return null;
+
+async function generateNarrativeWithLlm(
+  cityName,
+  stopsList,
+  summary,
+  promptText
+) {
+
+  const config =
+    getAiConfig();
+
+
+  if (!config.configured) {
+    return null;
+  }
+
 
   try {
-    const isGemini = config.provider === 'Gemini';
-    const stopsNames = stopsList.map(s => s.name).join(', ');
-    const prompt = `You are ReRoute's AI travel concierge.
-Traveler asked: "${promptText}".
-Our deterministic optimizer computed this verified day in ${cityName}:
-- Attractions: ${stopsNames}
-- Total Cost: ₹${summary.cost}
-- Total Duration: ${summary.minutes} minutes (${summary.day_start} to ${summary.day_end})
-- Total Carbon Emissions: ${summary.carbon_kg} kg CO₂
-- Number of stops: ${stopsList.length}
 
-In 2 to 3 concise, natural sentences, explain why this route fits their preferences and balances cost, time, and carbon. Mention specific stops and real figures. Do not invent any extra places or numbers.`;
+    const isGemini =
+      config.provider === 'Gemini';
+
+
+    const stopsNames =
+      stopsList
+        .map(
+          stop => stop.name
+        )
+        .join(', ');
+
+
+    const prompt = `
+You are ReRoute's AI travel concierge.
+
+The deterministic ReRoute optimizer has already calculated
+and verified the itinerary.
+
+Traveler request:
+"${promptText}"
+
+Verified optimizer result:
+
+City:
+${cityName}
+
+Attractions:
+${stopsNames}
+
+Total Cost:
+₹${summary.cost}
+
+Total Duration:
+${summary.minutes} minutes
+
+Day:
+${summary.day_start} to ${summary.day_end}
+
+Total Carbon:
+${summary.carbon_kg} kg CO₂
+
+Number of stops:
+${stopsList.length}
+
+IMPORTANT RULES:
+
+1. Use ONLY the verified facts provided above.
+2. Do not invent any new place.
+3. Do not invent any price.
+4. Do not invent any carbon value.
+5. Do not invent any travel duration.
+6. Do not change any number.
+7. Do not claim that a different itinerary was calculated.
+8. Do not make claims about feasibility beyond the supplied
+   verified result.
+
+Write 2 to 3 concise natural sentences explaining why
+this itinerary matches the traveler's stated preferences.
+`;
+
+
+    /*
+     * --------------------------------------------------------
+     * Gemini
+     * --------------------------------------------------------
+     */
 
     if (isGemini) {
-      const endpoint = config.baseUrl.includes('googleapis.com')
-        ? `${config.baseUrl}?key=${config.apiKey}`
-        : `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`;
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.3, maxOutputTokens: 250 }
-        }),
-        signal: AbortSignal.timeout(6000)
-      });
+      const endpoint =
+        config.baseUrl.includes(
+          'googleapis.com'
+        )
+          ? `${config.baseUrl}?key=${config.apiKey}`
+          : `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`;
 
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+
+      const res =
+        await fetch(
+          endpoint,
+          {
+
+            method: 'POST',
+
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
+
+            body: JSON.stringify({
+
+              contents: [
+
+                {
+                  parts: [
+                    {
+                      text: prompt
+                    }
+                  ]
+                }
+
+              ],
+
+              generationConfig: {
+
+                temperature:
+                  0.2,
+
+                maxOutputTokens:
+                  250
+              }
+
+            }),
+
+            signal:
+              AbortSignal.timeout(6000)
+          }
+        );
+
+
+      if (!res.ok) {
+        return null;
+      }
+
+
+      const data =
+        await res.json();
+
+
+      return (
+        data?.candidates?.[0]
+          ?.content
+          ?.parts?.[0]
+          ?.text
+          ?.trim() ||
+        null
+      );
+
+
+    /*
+     * --------------------------------------------------------
+     * OpenAI-compatible
+     * --------------------------------------------------------
+     */
+
     } else {
-      const endpoint = config.baseUrl.endsWith('/chat/completions')
-        ? config.baseUrl
-        : `${config.baseUrl.replace(/\/$/, '')}/chat/completions`;
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.apiKey}`
-        },
-        body: JSON.stringify({
-          model: config.model,
-          temperature: 0.3,
-          max_tokens: 250,
-          messages: [{ role: 'user', content: prompt }]
-        }),
-        signal: AbortSignal.timeout(6000)
-      });
+      const endpoint =
+        config.baseUrl.endsWith(
+          '/chat/completions'
+        )
+          ? config.baseUrl
+          : `${config.baseUrl.replace(/\/$/, '')}/chat/completions`;
 
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data?.choices?.[0]?.message?.content?.trim() || null;
+
+      const res =
+        await fetch(
+          endpoint,
+          {
+
+            method: 'POST',
+
+            headers: {
+
+              'Content-Type':
+                'application/json',
+
+              'Authorization':
+                `Bearer ${config.apiKey}`
+            },
+
+            body: JSON.stringify({
+
+              model:
+                config.model,
+
+              temperature:
+                0.2,
+
+              max_tokens:
+                250,
+
+              messages: [
+
+                {
+                  role: 'user',
+
+                  content:
+                    prompt
+                }
+
+              ]
+
+            }),
+
+            signal:
+              AbortSignal.timeout(6000)
+          }
+        );
+
+
+      if (!res.ok) {
+        return null;
+      }
+
+
+      const data =
+        await res.json();
+
+
+      return (
+        data?.choices?.[0]
+          ?.message
+          ?.content
+          ?.trim() ||
+        null
+      );
     }
+
+
   } catch (e) {
+
     return null;
   }
 }
 
+
 /**
- * Generates natural language explanation for an infeasible case grounded in deterministic diagnosis.
+ * ============================================================
+ * INFEASIBILITY EXPLANATION
+ * ============================================================
+ *
+ * The diagnosis comes from the deterministic optimizer.
+ * AI only converts it into human-friendly language.
  */
-async function explainInfeasibilityWithLlm(diagnosis, promptText = '') {
-  const config = getAiConfig();
-  if (!config.configured) return null;
+
+async function explainInfeasibilityWithLlm(
+  diagnosis,
+  promptText = ''
+) {
+
+  const config =
+    getAiConfig();
+
+
+  if (!config.configured) {
+    return null;
+  }
+
 
   try {
-    const isGemini = config.provider === 'Gemini';
-    const prompt = `You are ReRoute's constraint optimization diagnostician.
-A traveler requested a route: "${promptText}".
-The deterministic solver detected that no feasible plan exists with these hard constraints.
-Binding Constraint: ${diagnosis.binding_constraint?.type || 'CONSTRAINTS'}
-Constraint Details: ${JSON.stringify(diagnosis.binding_constraint)}
-Deterministic Diagnosis: ${diagnosis.explanation}
 
-In 2 clear, helpful sentences for a human traveler:
-1. Explain clearly why their plan cannot be scheduled.
-2. Explain the suggested relaxation and why it resolves the bottleneck.
-Do not hallucinate fake numbers. Rely strictly on the given facts.`;
+    const isGemini =
+      config.provider === 'Gemini';
+
+
+    const prompt = `
+You are ReRoute's constraint optimization diagnostician.
+
+A deterministic ReRoute optimizer has already determined
+that no feasible itinerary exists under the requested
+hard constraints.
+
+Traveler request:
+"${promptText}"
+
+Binding Constraint:
+${diagnosis.binding_constraint?.type || 'CONSTRAINTS'}
+
+Constraint Details:
+${JSON.stringify(
+  diagnosis.binding_constraint
+)}
+
+Deterministic Diagnosis:
+${diagnosis.explanation}
+
+Suggested Relaxation:
+${JSON.stringify(
+  diagnosis.relaxation || null
+)}
+
+IMPORTANT:
+
+1. Do not invent facts.
+2. Do not invent numbers.
+3. Do not invent places.
+4. Do not change the binding constraint.
+5. Do not claim that a plan is feasible unless the
+   deterministic solver says so.
+6. Use only the supplied diagnosis.
+
+In 2 clear sentences:
+
+1. Explain why the requested plan cannot be scheduled.
+2. Explain the supplied relaxation if one exists.
+`;
+
+
+    /*
+     * --------------------------------------------------------
+     * Gemini
+     * --------------------------------------------------------
+     */
 
     if (isGemini) {
-      const endpoint = config.baseUrl.includes('googleapis.com')
-        ? `${config.baseUrl}?key=${config.apiKey}`
-        : `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`;
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 250 }
-        }),
-        signal: AbortSignal.timeout(6000)
-      });
+      const endpoint =
+        config.baseUrl.includes(
+          'googleapis.com'
+        )
+          ? `${config.baseUrl}?key=${config.apiKey}`
+          : `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`;
 
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+
+      const res =
+        await fetch(
+          endpoint,
+          {
+
+            method: 'POST',
+
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
+
+            body: JSON.stringify({
+
+              contents: [
+
+                {
+                  parts: [
+                    {
+                      text: prompt
+                    }
+                  ]
+                }
+
+              ],
+
+              generationConfig: {
+
+                temperature:
+                  0.1,
+
+                maxOutputTokens:
+                  250
+              }
+
+            }),
+
+            signal:
+              AbortSignal.timeout(6000)
+          }
+        );
+
+
+      if (!res.ok) {
+        return null;
+      }
+
+
+      const data =
+        await res.json();
+
+
+      return (
+        data?.candidates?.[0]
+          ?.content
+          ?.parts?.[0]
+          ?.text
+          ?.trim() ||
+        null
+      );
+
+
+    /*
+     * --------------------------------------------------------
+     * OpenAI-compatible
+     * --------------------------------------------------------
+     */
+
     } else {
-      const endpoint = config.baseUrl.endsWith('/chat/completions')
-        ? config.baseUrl
-        : `${config.baseUrl.replace(/\/$/, '')}/chat/completions`;
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.apiKey}`
-        },
-        body: JSON.stringify({
-          model: config.model,
-          temperature: 0.2,
-          max_tokens: 250,
-          messages: [{ role: 'user', content: prompt }]
-        }),
-        signal: AbortSignal.timeout(6000)
-      });
+      const endpoint =
+        config.baseUrl.endsWith(
+          '/chat/completions'
+        )
+          ? config.baseUrl
+          : `${config.baseUrl.replace(/\/$/, '')}/chat/completions`;
 
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data?.choices?.[0]?.message?.content?.trim() || null;
+
+      const res =
+        await fetch(
+          endpoint,
+          {
+
+            method: 'POST',
+
+            headers: {
+
+              'Content-Type':
+                'application/json',
+
+              'Authorization':
+                `Bearer ${config.apiKey}`
+            },
+
+            body: JSON.stringify({
+
+              model:
+                config.model,
+
+              temperature:
+                0.1,
+
+              max_tokens:
+                250,
+
+              messages: [
+
+                {
+                  role: 'user',
+
+                  content:
+                    prompt
+                }
+
+              ]
+
+            }),
+
+            signal:
+              AbortSignal.timeout(6000)
+          }
+        );
+
+
+      if (!res.ok) {
+        return null;
+      }
+
+
+      const data =
+        await res.json();
+
+
+      return (
+        data?.choices?.[0]
+          ?.message
+          ?.content
+          ?.trim() ||
+        null
+      );
     }
+
+
   } catch (e) {
+
     return null;
   }
 }
+
+
+/**
+ * ============================================================
+ * EXPORTS
+ * ============================================================
+ */
 
 module.exports = {
+
   getAiConfig,
+
   getAiStatus,
+
   testAiConnection,
+
   extractIntentWithLlm,
+
   generateNarrativeWithLlm,
+
   explainInfeasibilityWithLlm
 };

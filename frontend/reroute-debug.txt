@@ -1,0 +1,1941 @@
+ReRoute Debug Snapshot
+Created: 09/25/2026 08:27:22
+
+============================================================
+### PROJECT STRUCTURE
+============================================================
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\.gitignore
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\HACKATHON.md
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\README.md
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\.gitignore
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\db.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\inspect-attempts.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\package-lock.json
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\package.json
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\server.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\supabase.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\test-verifier.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\ai\aiClient.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\ai\aiPlanner.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\ai\explainer.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\ai\intentParser.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\ai\outputContract.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\ai\verification.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\data\travel.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\optimizer\constraints.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\optimizer\feasibility.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\optimizer\infeasibility.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\optimizer\optimizer.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\optimizer\relaxation.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\optimizer\scoring.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\optimizer\verification.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\routes\ai.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\routes\cities.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\routes\contact.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\routes\explain.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\routes\optimize.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\routes\pois.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\routes\travel.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\scripts\checkRefClosingHours.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\scripts\evaluateCases.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\scripts\inspectAllCases.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\scripts\inspectCase1.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\scripts\inspectCase10Candidates.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\scripts\inspectCaseDetails.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\scripts\inspectDb.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\scripts\inspectFailReasons.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\backend\scripts\inspectRefCases.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\data\APS-09.db
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\data\APS-09.db-shm
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\data\APS-09.db-wal
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\.gitignore
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\.oxlintrc.json
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\index.html
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\package-lock.json
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\package.json
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\README.md
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\reroute-debug.txt
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\vite.config.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\public\favicon.svg
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\public\icons.svg
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\App.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\main.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\components\InfeasibilityCard.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\components\ItineraryTimeline.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\components\MapView.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\components\MetricsCard.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\components\Navbar.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\components\PlannerForm.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\components\RelaxedPlan.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\components\TradeoffView.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\components\WeightSliders.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\pages\About.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\pages\Contact.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\pages\Explore.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\pages\Home.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\pages\Planner.jsx
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\services\api.js
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\styles\About.css
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\styles\Contact.css
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\styles\Explore.css
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\styles\global.css
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\styles\Home.css
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\styles\MapView.css
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\styles\Navbar.css
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\frontend\src\styles\Planner.css
+C:\Users\91790\OneDrive\Desktop\Reroute-organizer\tests\optimizer.test.js
+
+============================================================
+### FRONTEND PLANNER
+### FILE: .\src\pages\Planner.jsx
+============================================================
+[1] import React, { useEffect, useRef, useState } from "react";
+[2] import { useLocation } from "react-router-dom";
+[3] 
+[4] import MapView from "../components/MapView";
+[5] import "../styles/MapView.css";
+[6] 
+[7] import {
+[8]   getCities,
+[9]   getPois,
+[10]   optimizeItinerary
+[11] } from "../services/api";
+[12] 
+[13] import PlannerForm from "../components/PlannerForm";
+[14] import WeightSliders from "../components/WeightSliders";
+[15] import MetricsCard from "../components/MetricsCard";
+[16] import ItineraryTimeline from "../components/ItineraryTimeline";
+[17] import InfeasibilityCard from "../components/InfeasibilityCard";
+[18] import RelaxedPlan from "../components/RelaxedPlan";
+[19] import TradeoffView from "../components/TradeoffView";
+[20] 
+[21] import {
+[22]   Sparkles,
+[23]   Globe,
+[24]   CheckCircle2,
+[25]   AlertCircle,
+[26]   RefreshCw,
+[27]   Compass,
+[28]   ShieldCheck
+[29] } from "lucide-react";
+[30] 
+[31] import "../styles/Planner.css";
+[32] 
+[33] export default function Planner() {
+[34]   const location = useLocation();
+[35] 
+[36]   const resultsRef = useRef(null);
+[37]   const debounceTimerRef = useRef(null);
+[38] 
+[39]   // ============================================================
+[40]   // LANGUAGE
+[41]   // ============================================================
+[42] 
+[43]   const [language, setLanguage] = useState("en");
+[44] 
+[45]   // ============================================================
+[46]   // CITY + POI DATA
+[47]   // ============================================================
+[48] 
+[49]   const [cities, setCities] = useState([]);
+[50]   const [selectedCityId, setSelectedCityId] = useState("");
+[51]   const [pois, setPois] = useState([]);
+[52] 
+[53]   // ============================================================
+[54]   // MAP
+[55]   // ============================================================
+[56] 
+[57]   const [selectedMapPoi, setSelectedMapPoi] = useState(null);
+[58] 
+[59]   // ============================================================
+[60]   // PLANNER CONSTRAINTS
+[61]   // ============================================================
+[62] 
+[63]   const [dayDate, setDayDate] = useState("2026-09-25");
+[64] 
+[65]   const [dayStart, setDayStart] = useState("09:00");
+[66] 
+[67]   const [dayEnd, setDayEnd] = useState("18:00");
+[68] 
+[69]   const [budgetCap, setBudgetCap] = useState("2500");
+[70] 
+[71]   const [carbonCap, setCarbonCap] = useState("10");
+[72] 
+[73]   const [mustSeePoiIds, setMustSeePoiIds] = useState([]);
+[74] 
+[75]   // Hard route endpoints
+[76]   const [startPoiId, setStartPoiId] = useState("");
+[77] 
+[78]   const [endPoiId, setEndPoiId] = useState("");
+[79] 
+[80]   // APS-09 supports walk + cab
+[81]   const [allowedModes, setAllowedModes] = useState([
+[82]     "walk",
+[83]     "cab"
+[84]   ]);
+[85] 
+[86]   // ============================================================
+[87]   // OBJECTIVE WEIGHTS
+[88]   // ============================================================
+[89] 
+[90]   const [weights, setWeights] = useState({
+[91]     cost: 0.3,
+[92]     time: 0.3,
+[93]     carbon: 0.4
+[94]   });
+[95] 
+[96]   // ============================================================
+[97]   // RESULT STATE
+[98]   // ============================================================
+[99] 
+[100]   const [result, setResult] = useState(null);
+[101] 
+[102]   const [previousSummary, setPreviousSummary] = useState(null);
+[103] 
+[104]   const [isLoading, setIsLoading] = useState(false);
+[105] 
+[106]   const [loadingStepText, setLoadingStepText] = useState(
+[107]     "Optimizing your route..."
+[108]   );
+[109] 
+[110]   const [error, setError] = useState("");
+[111] 
+[112]   const [showingRelaxedPlan, setShowingRelaxedPlan] =
+[113]     useState(false);
+[114] 
+[115]   // ============================================================
+[116]   // AI
+[117]   // ============================================================
+[118] 
+[119]   const [aiNarrative, setAiNarrative] = useState("");
+[120] 
+[121]   const [aiStatus, setAiStatus] = useState(null);
+[122] 
+[123]   // ============================================================
+[124]   // TRANSLATIONS
+[125]   // ============================================================
+[126] 
+[127]   const translations = {
+[128]     en: {
+[129]       tag: "MULTI-OBJECTIVE ITINERARY OPTIMIZER",
+[130] 
+[131]       title:
+[132]         "Optimal Travel Routes Grounded in Reality",
+[133] 
+[134]       subtitle:
+[135]         "Deterministic multi-objective routing balancing cost, time, and carbon with real data & opening hours.",
+[136] 
+[137]       resultHeading: "YOUR OPTIMIZED DAY",
+[138] 
+[139]       feasibleBadge:
+[140]         "Feasible Itinerary Verified ✓",
+[141] 
+[142]       infeasibleBadge:
+[143]         "Hard Constraint Infeasibility Detected ⚠",
+[144] 
+[145]       resetBtn: "Reset Controls"
+[146]     },
+[147] 
+[148]     hi: {
+[149]       tag:
+[150]         "बहु-उद्देश्यीय यात्रा कार्यक्रम अनुकूलक",
+[151] 
+[152]       title:
+[153]         "वास्तविकता पर आधारित सर्वोत्तम यात्रा मार्ग",
+[154] 
+[155]       subtitle:
+[156]         "लागत, समय और कार्बन का सटीक गणितीय संतुलन, वास्तविक डेटा और समय सीमाओं के साथ।",
+[157] 
+[158]       resultHeading:
+[159]         "आपका अनुकूलित दिन",
+[160] 
+[161]       feasibleBadge:
+[162]         "व्यावहारिक योजना सत्यापित ✓",
+[163] 
+[164]       infeasibleBadge:
+[165]         "कठोर प्रतिबंध उल्लंघन पाया गया ⚠",
+[166] 
+[167]       resetBtn:
+[168]         "रीसेट करें"
+[169]     }
+[170]   };
+[171] 
+[172]   const t = translations[language];
+[173] 
+[174]   // ============================================================
+[175]   // LOAD CITIES
+[176]   // ============================================================
+[177] 
+[178]   useEffect(() => {
+[179]     let cancelled = false;
+[180] 
+[181]     async function loadCities() {
+[182]       try {
+[183]         setError("");
+[184] 
+[185]         const data = await getCities();
+[186] 
+[187]         if (cancelled) return;
+[188] 
+[189]         if (
+[190]           data?.cities &&
+[191]           data.cities.length > 0
+[192]         ) {
+[193]           setCities(data.cities);
+[194] 
+[195]           const params = new URLSearchParams(
+[196]             location.search
+[197]           );
+[198] 
+[199]           const cityQuery = params.get("city");
+[200] 
+[201]           let initialCity = null;
+[202] 
+[203]           // URL city selection
+[204]           if (cityQuery) {
+[205]             initialCity = data.cities.find(
+[206]               (city) =>
+[207]                 city.city_id === cityQuery ||
+[208]                 city.name?.toLowerCase() ===
+[209]                   cityQuery.toLowerCase()
+[210]             );
+[211]           }
+[212] 
+[213]           // Default Bengaluru
+[214]           if (!initialCity) {
+[215]             initialCity =
+[216]               data.cities.find(
+[217]                 (city) =>
+[218]                   city.name
+[219]                     ?.toLowerCase()
+[220]                     .includes("bengaluru")
+[221]               ) || data.cities[0];
+[222]           }
+[223] 
+[224]           setSelectedCityId(
+[225]             initialCity.city_id
+[226]           );
+[227]         }
+[228]       } catch (err) {
+[229]         console.error(
+[230]           "Failed to load cities:",
+[231]           err
+[232]         );
+[233] 
+[234]         setError(
+[235]           "Unable to connect to ReRoute backend server. Please verify the backend is running."
+[236]         );
+[237]       }
+[238]     }
+[239] 
+[240]     loadCities();
+[241] 
+[242]     return () => {
+[243]       cancelled = true;
+[244]     };
+[245]   }, [location.search]);
+[246] 
+[247]   // ============================================================
+[248]   // LOAD POIs WHEN CITY CHANGES
+[249]   // ============================================================
+[250] 
+[251]   useEffect(() => {
+[252]     if (!selectedCityId) return;
+[253] 
+[254]     let cancelled = false;
+[255] 
+[256]     async function loadPois() {
+[257]       try {
+[258]         setError("");
+[259] 
+[260]         const data = await getPois(
+[261]           selectedCityId
+[262]         );
+[263] 
+[264]         if (cancelled) return;
+[265] 
+[266]         if (data?.pois) {
+[267]           const cityPois = data.pois;
+[268] 
+[269]           setPois(cityPois);
+[270] 
+[271]           setSelectedMapPoi(null);
+[272] 
+[273]           // Do not automatically mark POIs as must-see.
+[274]           // Required POIs are selected explicitly by the user.
+[275]           setMustSeePoiIds([]);
+[276] 
+[277]           // Default start/end
+[278]           if (cityPois.length > 0) {
+[279]             setStartPoiId(
+[280]               cityPois[0].poi_id
+[281]             );
+[282] 
+[283]             setEndPoiId(
+[284]               cityPois[cityPois.length - 1]
+[285]                 .poi_id
+[286]             );
+[287]           } else {
+[288]             setStartPoiId("");
+[289]             setEndPoiId("");
+[290]           }
+[291] 
+[292]           // Reset result because city changed
+[293]           setResult(null);
+[294]           setPreviousSummary(null);
+[295]           setAiNarrative("");
+[296]           setAiStatus(null);
+[297]         }
+[298]       } catch (err) {
+[299]         console.error(
+[300]           "Failed to load POIs:",
+[301]           err
+[302]         );
+[303] 
+[304]         setError(
+[305]           "Failed to fetch attractions for the selected city."
+[306]         );
+[307]       }
+[308]     }
+[309] 
+[310]     loadPois();
+[311] 
+[312]     return () => {
+[313]       cancelled = true;
+[314]     };
+[315]   }, [selectedCityId]);
+[316] 
+[317]   // ============================================================
+[318]   // SELECTED CITY
+[319]   // ============================================================
+[320] 
+[321]   const selectedCity = cities.find(
+[322]     (city) =>
+[323]       city.city_id === selectedCityId
+[324]   );
+[325] 
+[326]   // ============================================================
+[327]   // SELECTED PLACES FOR MAP
+[328]   //
+[329]   // IMPORTANT:
+[330]   // The map DOES NOT show the entire city's POIs.
+[331]   //
+[332]   // It only shows:
+[333]   // 1. Must-see places
+[334]   // 2. Start place
+[335]   // 3. End place
+[336]   //
+[337]   // There are NO route lines.
+[338]   // ============================================================
+[339] 
+[340]   const selectedMapPois = pois.filter((poi) =>
+[341]     mustSeePoiIds.includes(poi.poi_id) ||
+[342]     poi.poi_id === startPoiId ||
+[343]     poi.poi_id === endPoiId
+[344]   );
+[345] 
+[346]   // ============================================================
+[347]   // OPTIMIZED PLACES FOR MAP
+[348]   //
+[349]   // After optimization, show ONLY the POIs
+[350]   // included in the feasible itinerary.
+[351]   //
+[352]   // There is intentionally NO route prop.
+[353]   // ============================================================
+[354] 
+[355]   const optimizedPlaces =
+[356]     result?.feasible
+[357]       ? (result.stops || [])
+[358]           .map((stop) =>
+[359]             pois.find(
+[360]               (poi) =>
+[361]                 poi.poi_id === stop.poi_id
+[362]             )
+[363]           )
+[364]           .filter(Boolean)
+[365]       : [];
+[366] 
+[367]   // ============================================================
+[368]   // SELECTED MAP POI
+[369]   // ============================================================
+[370] 
+[371]   const selectedPoi = selectedMapPoi
+[372]     ? pois.find(
+[373]         (poi) =>
+[374]           poi.poi_id === selectedMapPoi
+[375]       )
+[376]     : null;
+[377] 
+[378]   // ============================================================
+[379]   // MAP POI SELECT
+[380]   // ============================================================
+[381] 
+[382]   const handleMapPoiSelect = (poiId) => {
+[383]     setSelectedMapPoi(poiId);
+[384]   };
+[385] 
+[386]   // ============================================================
+[387]   // SET MAP POI AS START
+[388]   // ============================================================
+[389] 
+[390]   const handleSetSelectedAsStart = () => {
+[391]     if (!selectedPoi) return;
+[392] 
+[393]     setStartPoiId(selectedPoi.poi_id);
+[394] 
+[395]     setSelectedMapPoi(selectedPoi.poi_id);
+[396]   };
+[397] 
+[398]   // ============================================================
+[399]   // SET MAP POI AS END
+[400]   // ============================================================
+[401] 
+[402]   const handleSetSelectedAsEnd = () => {
+[403]     if (!selectedPoi) return;
+[404] 
+[405]     setEndPoiId(selectedPoi.poi_id);
+[406] 
+[407]     setSelectedMapPoi(selectedPoi.poi_id);
+[408]   };
+[409] 
+[410]   // ============================================================
+[411]   // ADD MAP POI AS MUST SEE
+[412]   // ============================================================
+[413] 
+[414]   const handleAddSelectedAsMustSee = () => {
+[415]     if (!selectedPoi) return;
+[416] 
+[417]     setMustSeePoiIds((current) => {
+[418]       if (
+[419]         current.includes(
+[420]           selectedPoi.poi_id
+[421]         )
+[422]       ) {
+[423]         return current;
+[424]       }
+[425] 
+[426]       return [
+[427]         ...current,
+[428]         selectedPoi.poi_id
+[429]       ];
+[430]     });
+[431]   };
+[432] 
+[433]   // ============================================================
+[434]   // RUN OPTIMIZER
+[435]   // ============================================================
+[436] 
+[437]   const runOptimization = async (
+[438]     overrideParams = {}
+[439]   ) => {
+[440]     if (!selectedCityId) return;
+[441] 
+[442]     const effectiveCityId =
+[443]       overrideParams.city_id ||
+[444]       selectedCityId;
+[445] 
+[446]     const effectiveMustSee =
+[447]       overrideParams.must_see_poi_ids ??
+[448]       mustSeePoiIds;
+[449] 
+[450]     const effectiveStartPoi =
+[451]       overrideParams.start_poi_id !==
+[452]       undefined
+[453]         ? overrideParams.start_poi_id
+[454]         : startPoiId || null;
+[455] 
+[456]     const effectiveEndPoi =
+[457]       overrideParams.end_poi_id !==
+[458]       undefined
+[459]         ? overrideParams.end_poi_id
+[460]         : endPoiId || null;
+[461] 
+[462]     const effectiveModes =
+[463]       overrideParams.allowed_modes ??
+[464]       allowedModes;
+[465] 
+[466]     const effectiveCandidates =
+[467]       overrideParams.candidate_poi_ids ??
+[468]       Array.from(
+[469]         new Set([
+[470]           effectiveStartPoi,
+[471]           effectiveEndPoi,
+[472]           ...effectiveMustSee
+[473]         ].filter(Boolean))
+[474]       );
+[475] 
+[476]     const effectiveBudget =
+[477]       overrideParams.budget_cap !==
+[478]       undefined
+[479]         ? overrideParams.budget_cap
+[480]         : budgetCap;
+[481] 
+[482]     const effectiveCarbon =
+[483]       overrideParams.carbon_cap_kg !==
+[484]       undefined
+[485]         ? overrideParams.carbon_cap_kg
+[486]         : carbonCap
+[487]           ? Number(carbonCap)
+[488]           : null;
+[489] 
+[490]     const effectiveWeights =
+[491]       overrideParams.weights ||
+[492]       weights;
+[493] 
+[494]     const payload = {
+[495]       city_id: effectiveCityId,
+[496] 
+[497]       day_start:
+[498]         overrideParams.day_start ||
+[499]         dayStart,
+[500] 
+[501]       day_end:
+[502]         overrideParams.day_end ||
+[503]         dayEnd,
+[504] 
+[505]       budget_cap:
+[506]         effectiveBudget,
+[507] 
+[508]       carbon_cap_kg:
+[509]         effectiveCarbon,
+[510] 
+[511]       must_see_poi_ids:
+[512]         effectiveMustSee,
+[513] 
+[514]       candidate_poi_ids:
+[515]         effectiveCandidates,
+[516] 
+[517]       start_poi_id:
+[518]         effectiveStartPoi,
+[519] 
+[520]       end_poi_id:
+[521]         effectiveEndPoi,
+[522] 
+[523]       allowed_modes:
+[524]         effectiveModes,
+[525] 
+[526]       weights:
+[527]         effectiveWeights
+[528]     };
+[529] 
+[530]     // Opening-hours relaxation
+[531]     if (
+[532]       overrideParams.opening_hours_overrides
+[533]     ) {
+[534]       payload.opening_hours_overrides =
+[535]         overrideParams.opening_hours_overrides;
+[536]     }
+[537] 
+[538]     setIsLoading(true);
+[539]     setError("");
+[540] 
+[541]     setLoadingStepText(
+[542]       "Reading your preferences..."
+[543]     );
+[544] 
+[545]     const timer1 = setTimeout(() => {
+[546]       setLoadingStepText(
+[547]         "Checking constraints & travel matrix..."
+[548]       );
+[549]     }, 250);
+[550] 
+[551]     const timer2 = setTimeout(() => {
+[552]       setLoadingStepText(
+[553]         "Optimizing your route across cost, time and carbon..."
+[554]       );
+[555]     }, 650);
+[556] 
+[557]     try {
+[558]       const data =
+[559]         await optimizeItinerary(
+[560]           payload
+[561]         );
+[562] 
+[563]       // Preserve previous feasible result
+[564]       if (
+[565]         data?.feasible &&
+[566]         result?.feasible
+[567]       ) {
+[568]         setPreviousSummary(
+[569]           result.summary
+[570]         );
+[571]       }
+[572] 
+[573]       setResult(data);
+[574] 
+[575]       if (data?.explanation) {
+[576]         setAiNarrative(
+[577]           data.explanation
+[578]         );
+[579]       }
+[580] 
+[581]       setShowingRelaxedPlan(false);
+[582] 
+[583]       // Scroll after result
+[584]       if (
+[585]         overrideParams.shouldScroll !==
+[586]           false &&
+[587]         resultsRef.current
+[588]       ) {
+[589]         setTimeout(() => {
+[590]           resultsRef.current.scrollIntoView(
+[591]             {
+[592]               behavior: "smooth",
+[593]               block: "start"
+[594]             }
+[595]           );
+[596]         }, 100);
+[597]       }
+[598]     } catch (err) {
+[599]       console.error(
+[600]         "Optimization error:",
+[601]         err
+[602]       );
+[603] 
+[604]       setError(
+[605]         err?.message ||
+[606]           "Optimization request failed. Please check your inputs."
+[607]       );
+[608]     } finally {
+[609]       clearTimeout(timer1);
+[610]       clearTimeout(timer2);
+[611] 
+[612]       setIsLoading(false);
+[613]     }
+[614]   };
+[615] 
+[616]   // ============================================================
+[617]   // INITIAL OPTIMIZATION
+[618]   // ============================================================
+[619] 
+[620]   useEffect(() => {
+[621]     if (
+[622]       selectedCityId &&
+[623]       mustSeePoiIds.length > 0 &&
+[624]       startPoiId &&
+[625]       endPoiId &&
+[626]       !result
+[627]     ) {
+[628]       runOptimization({
+[629]         shouldScroll: false
+[630]       });
+[631]     }
+[632] 
+[633]     // Initial optimizer intentionally runs after
+[634]     // city/POI defaults are available.
+[635]     // eslint-disable-next-line react-hooks/exhaustive-deps
+[636]   }, [
+[637]     selectedCityId,
+[638]     mustSeePoiIds,
+[639]     startPoiId,
+[640]     endPoiId
+[641]   ]);
+[642] 
+[643]   // ============================================================
+[644]   // AI PLAN COMPLETE
+[645]   // ============================================================
+[646] 
+[647]   const handleAiPlanComplete = (
+[648]     aiData
+[649]   ) => {
+[650]     if (!aiData) return;
+[651] 
+[652]     if (aiData.ai_status) {
+[653]       setAiStatus(
+[654]         aiData.ai_status
+[655]       );
+[656]     }
+[657] 
+[658]     if (aiData.narrative) {
+[659]       setAiNarrative(
+[660]         aiData.narrative
+[661]       );
+[662]     }
+[663] 
+[664]     if (aiData.plan) {
+[665]       if (
+[666]         result?.feasible &&
+[667]         aiData.plan?.feasible
+[668]       ) {
+[669]         setPreviousSummary(
+[670]           result.summary
+[671]         );
+[672]       }
+[673] 
+[674]       setResult(
+[675]         aiData.plan
+[676]       );
+[677]     } else {
+[678]       setResult(aiData);
+[679]     }
+[680] 
+[681]     if (resultsRef.current) {
+[682]       setTimeout(() => {
+[683]         resultsRef.current.scrollIntoView(
+[684]           {
+[685]             behavior: "smooth",
+[686]             block: "start"
+[687]           }
+[688]         );
+[689]       }, 100);
+[690]     }
+[691]   };
+[692] 
+[693]   // ============================================================
+[694]   // WEIGHT SLIDER HANDLER
+[695]   // ============================================================
+[696] 
+[697]   const handleWeightsChange = (
+[698]     newWeights
+[699]   ) => {
+[700]     setWeights(newWeights);
+[701] 
+[702]     if (debounceTimerRef.current) {
+[703]       clearTimeout(
+[704]         debounceTimerRef.current
+[705]       );
+[706]     }
+[707] 
+[708]     debounceTimerRef.current =
+[709]       setTimeout(() => {
+[710]         runOptimization({
+[711]           weights: newWeights,
+[712]           shouldScroll: false
+[713]         });
+[714]       }, 400);
+[715]   };
+[716] 
+[717]   // ============================================================
+[718]   // APPLY RELAXATION
+[719]   // ============================================================
+[720] 
+[721]   const handleApplyRelaxation = (
+[722]     chosenConstraintType
+[723]   ) => {
+[724]     if (
+[725]       !result ||
+[726]       !result.relaxed_plan
+[727]     ) {
+[728]       return;
+[729]     }
+[730] 
+[731]     const relaxedPlan =
+[732]       result.relaxed_plan;
+[733] 
+[734]     const overrides = {
+[735]       shouldScroll: true
+[736]     };
+[737] 
+[738]     // ----------------------------------------------------------
+[739]     // TIME END
+[740]     // ----------------------------------------------------------
+[741] 
+[742]     if (
+[743]       chosenConstraintType === "TIME" ||
+[744]       (!chosenConstraintType &&
+[745]         relaxedPlan.constraint_type ===
+[746]           "TIME")
+[747]     ) {
+[748]       const relaxedEnd =
+[749]         relaxedPlan.relaxed_value;
+[750] 
+[751]       setDayEnd(relaxedEnd);
+[752] 
+[753]       overrides.day_end =
+[754]         relaxedEnd;
+[755]     }
+[756] 
+[757]     // ----------------------------------------------------------
+[758]     // TIME START
+[759]     // ----------------------------------------------------------
+[760] 
+[761]     else if (
+[762]       chosenConstraintType ===
+[763]         "TIME_START" ||
+[764]       (!chosenConstraintType &&
+[765]         relaxedPlan.constraint_type ===
+[766]           "TIME_START")
+[767]     ) {
+[768]       const relaxedStart =
+[769]         relaxedPlan.relaxed_value;
+[770] 
+[771]       setDayStart(relaxedStart);
+[772] 
+[773]       overrides.day_start =
+[774]         relaxedStart;
+[775]     }
+[776] 
+[777]     // ----------------------------------------------------------
+[778]     // BUDGET
+[779]     // ----------------------------------------------------------
+[780] 
+[781]     else if (
+[782]       chosenConstraintType ===
+[783]         "BUDGET" ||
+[784]       (!chosenConstraintType &&
+[785]         relaxedPlan.constraint_type ===
+[786]           "BUDGET")
+[787]     ) {
+[788]       const value = String(
+[789]         relaxedPlan.relaxed_value ||
+[790]           ""
+[791]       ).replace(
+[792]         /[^0-9.]/g,
+[793]         ""
+[794]       );
+[795] 
+[796]       setBudgetCap(value);
+[797] 
+[798]       overrides.budget_cap =
+[799]         value;
+[800]     }
+[801] 
+[802]     // ----------------------------------------------------------
+[803]     // CARBON
+[804]     // ----------------------------------------------------------
+[805] 
+[806]     else if (
+[807]       chosenConstraintType ===
+[808]         "CARBON" ||
+[809]       (!chosenConstraintType &&
+[810]         relaxedPlan.constraint_type ===
+[811]           "CARBON")
+[812]     ) {
+[813]       const value = String(
+[814]         relaxedPlan.relaxed_value ||
+[815]           ""
+[816]       ).replace(
+[817]         /[^0-9.]/g,
+[818]         ""
+[819]       );
+[820] 
+[821]       setCarbonCap(value);
+[822] 
+[823]       overrides.carbon_cap_kg =
+[824]         Number(value);
+[825]     }
+[826] 
+[827]     // ----------------------------------------------------------
+[828]     // OPENING HOURS
+[829]     // ----------------------------------------------------------
+[830] 
+[831]     else if (
+[832]       chosenConstraintType ===
+[833]         "OPENING_HOURS" ||
+[834]       (!chosenConstraintType &&
+[835]         relaxedPlan.constraint_type ===
+[836]           "OPENING_HOURS")
+[837]     ) {
+[838]       const poiId =
+[839]         relaxedPlan.poi_id ||
+[840]         relaxedPlan.binding_constraint
+[841]           ?.poi_id;
+[842] 
+[843]       const relaxedClosing =
+[844]         relaxedPlan.relaxed_value;
+[845] 
+[846]       if (
+[847]         poiId &&
+[848]         relaxedClosing
+[849]       ) {
+[850]         overrides.opening_hours_overrides =
+[851]           {
+[852]             [poiId]: {
+[853]               closes_at:
+[854]                 relaxedClosing
+[855]             }
+[856]           };
+[857]       } else {
+[858]         setShowingRelaxedPlan(true);
+[859]         return;
+[860]       }
+[861]     }
+[862] 
+[863]     runOptimization(
+[864]       overrides
+[865]     );
+[866]   };
+[867] 
+[868]   // ============================================================
+[869]   // RESET
+[870]   // ============================================================
+[871] 
+[872]   const resetControls = () => {
+[873]     setDayStart("09:00");
+[874] 
+[875]     setDayEnd("18:00");
+[876] 
+[877]     setBudgetCap("2500");
+[878] 
+[879]     setCarbonCap("10");
+[880] 
+[881]     setWeights({
+[882]       cost: 0.3,
+[883]       time: 0.3,
+[884]       carbon: 0.4
+[885]     });
+[886] 
+[887]     setAllowedModes([
+[888]       "walk",
+[889]       "cab"
+[890]     ]);
+[891] 
+[892]     setShowingRelaxedPlan(false);
+[893] 
+[894]     setSelectedMapPoi(null);
+[895] 
+[896]     setResult(null);
+[897] 
+[898]     setPreviousSummary(null);
+[899] 
+[900]     setAiNarrative("");
+[901] 
+[902]     setAiStatus(null);
+[903] 
+[904]     setTimeout(() => {
+[905]       runOptimization({
+[906]         shouldScroll: false
+[907]       });
+[908]     }, 50);
+[909]   };
+[910] 
+[911]   // ============================================================
+[912]   // RENDER
+[913]   // ============================================================
+[914] 
+[915]   return (
+[916]     <div className="planner-page">
+[917] 
+[918]       {/* ======================================================
+[919]           TOP BAR
+[920]       ====================================================== */}
+[921] 
+[922]       <div className="planner-topbar">
+[923] 
+[924]         <div className="brand-sub">
+[925]           <span className="live-pulse-dot" />
+[926]           <span>{t.tag}</span>
+[927]         </div>
+[928] 
+[929]         <div className="language-toggle">
+[930] 
+[931]           <Globe size={14} />
+[932] 
+[933]           <button
+[934]             type="button"
+[935]             className={
+[936]               language === "en"
+[937]                 ? "lang-btn active"
+[938]                 : "lang-btn"
+[939]             }
+[940]             onClick={() =>
+[941]               setLanguage("en")
+[942]             }
+[943]           >
+[944]             English
+[945]           </button>
+[946] 
+[947]           <span className="lang-sep">
+[948]             |
+[949]           </span>
+[950] 
+[951]           <button
+[952]             type="button"
+[953]             className={
+[954]               language === "hi"
+[955]                 ? "lang-btn active"
+[956]                 : "lang-btn"
+[957]             }
+[958]             onClick={() =>
+[959]               setLanguage("hi")
+[960]             }
+[961]           >
+[962]             हिंदी
+[963]           </button>
+[964] 
+[965]         </div>
+[966]       </div>
+[967] 
+[968]       {/* ======================================================
+[969]           HERO
+[970]       ====================================================== */}
+[971] 
+[972]       <div className="planner-hero">
+[973] 
+[974]         <h1 className="planner-headline">
+[975]           {t.title}
+[976]         </h1>
+[977] 
+[978]         <p className="planner-tagline">
+[979]           {t.subtitle}
+[980]         </p>
+[981] 
+[982]       </div>
+[983] 
+[984]       {/* ======================================================
+[985]           ERROR
+[986]       ====================================================== */}
+[987] 
+[988]       {error && (
+[989]         <div className="planner-error-banner">
+[990] 
+[991]           <AlertCircle size={18} />
+[992] 
+[993]           <span>
+[994]             {error}
+[995]           </span>
+[996] 
+[997]           <button
+[998]             type="button"
+[999]             className="error-retry-btn"
+[1000]             onClick={() =>
+[1001]               runOptimization()
+[1002]             }
+[1003]           >
+[1004]             Retry
+[1005]           </button>
+[1006] 
+[1007]         </div>
+[1008]       )}
+[1009] 
+[1010]       {/* ======================================================
+[1011]           THREE COLUMN LAYOUT
+[1012]       ====================================================== */}
+[1013] 
+[1014]       <div className="planner-layout-grid">
+[1015] 
+[1016]         {/* ====================================================
+[1017]             LEFT SIDEBAR
+[1018]         ==================================================== */}
+[1019] 
+[1020]         <aside className="planner-sidebar">
+[1021] 
+[1022]           <PlannerForm
+[1023]             cities={cities}
+[1024] 
+[1025]             selectedCityId={
+[1026]               selectedCityId
+[1027]             }
+[1028] 
+[1029]             onCityChange={(cityId) => {
+[1030]               setSelectedCityId(
+[1031]                 cityId
+[1032]               );
+[1033] 
+[1034]               setSelectedMapPoi(null);
+[1035] 
+[1036]               setResult(null);
+[1037] 
+[1038]               setPreviousSummary(null);
+[1039] 
+[1040]               setAiNarrative("");
+[1041] 
+[1042]               setAiStatus(null);
+[1043]             }}
+[1044] 
+[1045]             pois={pois}
+[1046] 
+[1047]             dayDate={dayDate}
+[1048]             setDayDate={setDayDate}
+[1049] 
+[1050]             dayStart={dayStart}
+[1051]             setDayStart={setDayStart}
+[1052] 
+[1053]             dayEnd={dayEnd}
+[1054]             setDayEnd={setDayEnd}
+[1055] 
+[1056]             budgetCap={budgetCap}
+[1057]             setBudgetCap={setBudgetCap}
+[1058] 
+[1059]             carbonCap={carbonCap}
+[1060]             setCarbonCap={setCarbonCap}
+[1061] 
+[1062]             mustSeePoiIds={
+[1063]               mustSeePoiIds
+[1064]             }
+[1065] 
+[1066]             setMustSeePoiIds={
+[1067]               setMustSeePoiIds
+[1068]             }
+[1069] 
+[1070]             startPoiId={
+[1071]               startPoiId
+[1072]             }
+[1073] 
+[1074]             setStartPoiId={
+[1075]               setStartPoiId
+[1076]             }
+[1077] 
+[1078]             endPoiId={
+[1079]               endPoiId
+[1080]             }
+[1081] 
+[1082]             setEndPoiId={
+[1083]               setEndPoiId
+[1084]             }
+[1085] 
+[1086]             allowedModes={
+[1087]               allowedModes
+[1088]             }
+[1089] 
+[1090]             setAllowedModes={
+[1091]               setAllowedModes
+[1092]             }
+[1093] 
+[1094]             onOptimize={() =>
+[1095]               runOptimization({
+[1096]                 shouldScroll: true
+[1097]               })
+[1098]             }
+[1099] 
+[1100]             isLoading={isLoading}
+[1101] 
+[1102]             onAiPlanComplete={
+[1103]               handleAiPlanComplete
+[1104]             }
+[1105] 
+[1106]             language={language}
+[1107]           />
+[1108] 
+[1109]           {/* ====================================================
+[1110]               INTERACTIVE MAP
+[1111]           ==================================================== */}
+[1112] 
+[1113]           <section className="planner-map-section">
+[1114] 
+[1115]             <div className="planner-map-header">
+[1116] 
+[1117]               <div>
+[1118] 
+[1119]                 <span className="planner-map-eyebrow">
+[1120]                   EXPLORE DESTINATION
+[1121]                 </span>
+[1122] 
+[1123]                 <h3>
+[1124]                   Choose a place on the map
+[1125]                 </h3>
+[1126] 
+[1127]                 <p>
+[1128]                   Click a real POI to inspect it,
+[1129]                   then use it as your start, end,
+[1130]                   or must-see location.
+[1131]                 </p>
+[1132] 
+[1133]               </div>
+[1134] 
+[1135]               {selectedPoi && (
+[1136]                 <div className="planner-map-selection-badge">
+[1137] 
+[1138]                   <span>
+[1139]                     SELECTED
+[1140]                   </span>
+[1141] 
+[1142]                   <strong>
+[1143]                     {selectedPoi.name}
+[1144]                   </strong>
+[1145] 
+[1146]                 </div>
+[1147]               )}
+[1148] 
+[1149]             </div>
+[1150] 
+[1151]             {/* ==================================================
+[1152]                 IMPORTANT:
+[1153]                 Only selected places are shown.
+[1154]                 No route.
+[1155]             ================================================== */}
+[1156] 
+[1157]             <MapView
+[1158]               pois={selectedMapPois}
+[1159]               selectedPoiId={
+[1160]                 selectedMapPoi
+[1161]               }
+[1162]               onPoiSelect={
+[1163]                 handleMapPoiSelect
+[1164]               }
+[1165]               city={
+[1166]                 selectedCity
+[1167]               }
+[1168]             />
+[1169] 
+[1170]             {/* Selected POI actions */}
+[1171] 
+[1172]             {selectedPoi && (
+[1173]               <div className="selected-poi-card">
+[1174] 
+[1175]                 <div className="selected-poi-info">
+[1176] 
+[1177]                   <span className="selected-poi-label">
+[1178]                     SELECTED PLACE
+[1179]                   </span>
+[1180] 
+[1181]                   <h3>
+[1182]                     📍 {selectedPoi.name}
+[1183]                   </h3>
+[1184] 
+[1185]                   <p>
+[1186]                     {
+[1187]                       selectedPoi.poi_category ||
+[1188]                       "Attraction"
+[1189]                     }
+[1190] 
+[1191]                     {" • "}
+[1192] 
+[1193]                     {
+[1194]                       selectedPoi.typical_duration_minutes ??
+[1195]                       0
+[1196]                     }
+[1197] 
+[1198]                     {" min • ₹"}
+[1199] 
+[1200]                     {
+[1201]                       selectedPoi.entry_cost ??
+[1202]                       "0.00"
+[1203]                     }
+[1204]                   </p>
+[1205] 
+[1206]                   <div className="selected-poi-meta">
+[1207] 
+[1208]                     <span>
+[1209]                       🕐{" "}
+[1210]                       {
+[1211]                         selectedPoi.opens_at ||
+[1212]                         "--"
+[1213]                       }
+[1214] 
+[1215]                       {" – "}
+[1216] 
+[1217]                       {
+[1218]                         selectedPoi.closes_at ||
+[1219]                         "--"
+[1220]                       }
+[1221]                     </span>
+[1222] 
+[1223]                     <span>
+[1224]                       🌱{" "}
+[1225]                       {
+[1226]                         selectedPoi.carbon_kg ??
+[1227]                         0
+[1228]                       }
+[1229] 
+[1230]                       {" kg CO₂"}
+[1231]                     </span>
+[1232] 
+[1233]                   </div>
+[1234] 
+[1235]                 </div>
+[1236] 
+[1237]                 <div className="selected-poi-actions">
+[1238] 
+[1239]                   <button
+[1240]                     type="button"
+[1241]                     onClick={
+[1242]                       handleSetSelectedAsStart
+[1243]                     }
+[1244]                   >
+[1245]                     Set as Start
+[1246]                   </button>
+[1247] 
+[1248]                   <button
+[1249]                     type="button"
+[1250]                     onClick={
+[1251]                       handleSetSelectedAsEnd
+[1252]                     }
+[1253]                   >
+[1254]                     Set as End
+[1255]                   </button>
+[1256] 
+[1257]                   <button
+[1258]                     type="button"
+[1259]                     onClick={
+[1260]                       handleAddSelectedAsMustSee
+[1261]                     }
+[1262]                     disabled={mustSeePoiIds.includes(
+[1263]                       selectedPoi.poi_id
+[1264]                     )}
+[1265]                   >
+[1266]                     {
+[1267]                       mustSeePoiIds.includes(
+[1268]                         selectedPoi.poi_id
+[1269]                       )
+[1270]                         ? "✓ Must-see"
+[1271]                         : "★ Add Must-see"
+[1272]                     }
+[1273]                   </button>
+[1274] 
+[1275]                 </div>
+[1276] 
+[1277]               </div>
+[1278]             )}
+[1279] 
+[1280]           </section>
+[1281] 
+[1282]           {/* ====================================================
+[1283]               OBJECTIVE WEIGHTS
+[1284]           ==================================================== */}
+[1285] 
+[1286]           <WeightSliders
+[1287]             weights={weights}
+[1288]             onChange={
+[1289]               handleWeightsChange
+[1290]             }
+[1291]             disabled={isLoading}
+[1292]             language={language}
+[1293]           />
+[1294] 
+[1295]           {/* Reset */}
+[1296] 
+[1297]           <button
+[1298]             type="button"
+[1299]             className="planner-reset-btn"
+[1300]             onClick={
+[1301]               resetControls
+[1302]             }
+[1303]           >
+[1304]             <RefreshCw size={15} />
+[1305] 
+[1306]             {t.resetBtn}
+[1307]           </button>
+[1308] 
+[1309]         </aside>
+[1310] 
+[1311]         {/* ====================================================
+[1312]             CENTER RESULT COLUMN
+[1313]         ==================================================== */}
+[1314] 
+[1315]         <section
+[1316]           className="planner-content"
+[1317]           ref={resultsRef}
+[1318]         >
+[1319] 
+[1320]           {/* Results header */}
+[1321] 
+[1322]           <div className="results-header-row">
+[1323] 
+[1324]             <div className="results-title-group">
+[1325] 
+[1326]               <h3 className="results-heading">
+[1327]                 {t.resultHeading}
+[1328]               </h3>
+[1329] 
+[1330]               {result && (
+[1331]                 <span className="results-city-crumb">
+[1332] 
+[1333]                   {
+[1334]                     selectedCity?.name ||
+[1335]                     "Destination"
+[1336]                   }
+[1337] 
+[1338]                   {" • "}
+[1339] 
+[1340]                   {dayDate}
+[1341] 
+[1342]                 </span>
+[1343]               )}
+[1344] 
+[1345]             </div>
+[1346] 
+[1347]             {result && (
+[1348]               <span
+[1349]                 className={
+[1350]                   `status-pill ${
+[1351]                     result.feasible
+[1352]                       ? "feasible"
+[1353]                       : "infeasible"
+[1354]                   }`
+[1355]                 }
+[1356]               >
+[1357] 
+[1358]                 {result.feasible ? (
+[1359]                   <>
+[1360]                     <CheckCircle2
+[1361]                       size={14}
+[1362]                     />
+[1363] 
+[1364]                     <span>
+[1365]                       {
+[1366]                         t.feasibleBadge
+[1367]                       }
+[1368]                     </span>
+[1369]                   </>
+[1370]                 ) : (
+[1371]                   <>
+[1372]                     <AlertCircle
+[1373]                       size={14}
+[1374]                     />
+[1375] 
+[1376]                     <span>
+[1377]                       {
+[1378]                         t.infeasibleBadge
+[1379]                       }
+[1380]                     </span>
+[1381]                   </>
+[1382]                 )}
+[1383] 
+[1384]               </span>
+[1385]             )}
+[1386] 
+[1387]           </div>
+[1388] 
+[1389]           {/* ==================================================
+[1390]               LOADING
+[1391]           ================================================== */}
+[1392] 
+[1393]           {isLoading && (
+[1394]             <div className="optimizing-overlay">
+[1395] 
+[1396]               <RefreshCw
+[1397]                 size={28}
+[1398]                 className="spin accent-spin"
+[1399]               />
+[1400] 
+[1401]               <h4>
+[1402]                 {loadingStepText}
+[1403]               </h4>
+[1404] 
+[1405]               <p>
+[1406]                 Evaluating travel times,
+[1407]                 opening hours, cost and
+[1408]                 carbon footprint
+[1409]                 deterministically...
+[1410]               </p>
+[1411] 
+[1412]             </div>
+[1413]           )}
+[1414] 
+[1415]           {/* ==================================================
+[1416]               FEASIBLE RESULT
+[1417]           ================================================== */}
+[1418] 
+[1419]           {result &&
+[1420]             result.feasible && (
+[1421]               <div className="feasible-results-block">
+[1422] 
+[1423]                 {/* AI explanation */}
+[1424] 
+[1425]                 {aiNarrative && (
+[1426]                   <div className="ai-explanation-card">
+[1427] 
+[1428]                     <div className="explanation-icon-title">
+[1429] 
+[1430]                       <Sparkles
+[1431]                         size={16}
+[1432]                         className="sparkle-accent"
+[1433]                       />
+[1434] 
+[1435]                       <span className="explanation-label">
+[1436] 
+[1437]                         {
+[1438]                           aiStatus?.fallback
+[1439]                             ? "Smart Grounded Explanation"
+[1440]                             : "AI Concierge Insight"
+[1441]                         }
+[1442] 
+[1443]                       </span>
+[1444] 
+[1445]                     </div>
+[1446] 
+[1447]                     <p className="explanation-body">
+[1448]                       {aiNarrative}
+[1449]                     </p>
+[1450] 
+[1451]                     {aiStatus?.message && (
+[1452]                       <div className="ai-provider-tag">
+[1453] 
+[1454]                         <span>
+[1455]                           {
+[1456]                             aiStatus.message
+[1457]                           }
+[1458]                         </span>
+[1459] 
+[1460]                       </div>
+[1461]                     )}
+[1462] 
+[1463]                   </div>
+[1464]                 )}
+[1465] 
+[1466]                 {/* Metrics */}
+[1467] 
+[1468]                 <MetricsCard
+[1469]                   summary={
+[1470]                     result.summary
+[1471]                   }
+[1472]                   budgetCap={
+[1473]                     budgetCap
+[1474]                   }
+[1475]                   carbonCap={
+[1476]                     carbonCap
+[1477]                   }
+[1478]                   language={
+[1479]                     language
+[1480]                   }
+[1481]                 />
+[1482] 
+[1483]                 {/* ==================================================
+[1484]                     OPTIMIZED PLACES MAP
+[1485]                 ================================================== */}
+[1486] 
+[1487]                 {optimizedPlaces.length >
+[1488]                   0 && (
+[1489] 
+[1490]                   <div className="timeline-section-card planner-result-map-card">
+[1491] 
+[1492]                     <div className="card-header">
+[1493] 
+[1494]                       <h4 className="section-title">
+[1495]                         OPTIMIZED PLACES MAP
+[1496]                       </h4>
+[1497] 
+[1498]                       <p className="section-subtitle">
+[1499]                         Only the places included in the feasible itinerary are shown on the map. No route lines or turn-by-turn directions.
+[1500]                       </p>
+[1501] 
+[1502]                     </div>
+[1503] 
+[1504]                     <MapView
+[1505]                       pois={optimizedPlaces}
+[1506]                       selectedPoiId={
+[1507]                         selectedMapPoi
+[1508]                       }
+[1509]                       onPoiSelect={
+[1510]                         handleMapPoiSelect
+[1511]                       }
+[1512]                       city={
+[1513]                         selectedCity
+[1514]                       }
+[1515]                       route={{
+[1516]                         stops: result.stops || [],
+[1517]                         transfers: result.transfers || []
+[1518]                       }}
+[1519]                     />
+[1520] 
+[1521]                   </div>
+[1522]                 )}
+[1523] 
+[1524]                 {/* ==================================================
+[1525]                     TIMELINE
+[1526]                 ================================================== */}
+[1527] 
+[1528]                 <div className="timeline-section-card">
+[1529] 
+[1530]                   <div className="card-header">
+[1531] 
+[1532]                     <h4 className="section-title">
+[1533]                       CHRONOLOGICAL DAY
+[1534]                       SCHEDULE
+[1535]                     </h4>
+[1536] 
+[1537]                     <p className="section-subtitle">
+[1538] 
+[1539]                       {
+[1540]                         result.summary
+[1541]                           ?.day_start
+[1542]                       }
+[1543] 
+[1544]                       {" to "}
+[1545] 
+[1546]                       {
+[1547]                         result.summary
+[1548]                           ?.day_end
+[1549]                       }
+[1550] 
+[1551]                       {" • "}
+[1552] 
+[1553]                       {
+[1554]                         result.stops
+[1555]                           ?.length || 0
+[1556]                       }
+[1557] 
+[1558]                       {" Attractions • "}
+[1559] 
+[1560]                       {
+[1561]                         result.transfers
+[1562]                           ?.length || 0
+[1563]                       }
+[1564] 
+[1565]                       {" Transfers"}
+[1566] 
+[1567]                     </p>
+[1568] 
+[1569]                   </div>
+[1570] 
+[1571]                   <ItineraryTimeline
+[1572]                     stops={
+[1573]                       result.stops
+[1574]                     }
+[1575]                     transfers={
+[1576]                       result.transfers
+[1577]                     }
+[1578]                     language={
+[1579]                       language
+[1580]                     }
+[1581]                   />
+[1582] 
+[1583]                 </div>
+[1584] 
+[1585]               </div>
+[1586]             )}
+[1587] 
+[1588]           {/* ==================================================
+[1589]               INFEASIBLE RESULT
+[1590]           ================================================== */}
+[1591] 
+[1592]           {result &&
+[1593]             !result.feasible && (
+[1594]               <div className="infeasible-results-block">
+[1595] 
+[1596]                 <InfeasibilityCard
+[1597]                   bindingConstraint={
+[1598]                     result.binding_constraint
+[1599]                   }
+[1600] 
+[1601]                   explanation={
+[1602]                     result.explanation
+[1603]                   }
+[1604] 
+[1605]                   relaxation={
+[1606]                     result.relaxation
+[1607]                   }
+[1608] 
+[1609]                   onApplyRelaxation={
+[1610]                     handleApplyRelaxation
+[1611]                   }
+[1612] 
+[1613]                   onViewRelaxedPlan={() =>
+[1614]                     setShowingRelaxedPlan(
+[1615]                       !showingRelaxedPlan
+[1616]                     )
+[1617]                   }
+[1618] 
+[1619]                   showingRelaxedPlan={
+[1620]                     showingRelaxedPlan
+[1621]                   }
+[1622] 
+[1623]                   language={
+[1624]                     language
+[1625]                   }
+[1626]                 />
+[1627] 
+[1628]                 {showingRelaxedPlan &&
+[1629]                   result.relaxed_plan && (
+[1630]                     <RelaxedPlan
+[1631]                       relaxedPlan={
+[1632]                         result.relaxed_plan
+[1633]                       }
+[1634] 
+[1635]                       onApply={() =>
+[1636]                         handleApplyRelaxation()
+[1637]                       }
+[1638] 
+[1639]                       language={
+[1640]                         language
+[1641]                       }
+[1642]                     />
+[1643]                   )}
+[1644] 
+[1645]               </div>
+[1646]             )}
+[1647] 
+[1648]           {/* ==================================================
+[1649]               EMPTY STATE
+[1650]           ================================================== */}
+[1651] 
+[1652]           {!result &&
+[1653]             !isLoading && (
+[1654]               <div className="planner-initial-empty-state">
+[1655] 
+[1656]                 <Compass
+[1657]                   size={40}
+[1658]                   className="empty-icon"
+[1659]                 />
+[1660] 
+[1661]                 <h3>
+[1662]                   Ready to craft
+[1663]                   your day
+[1664]                 </h3>
+[1665] 
+[1666]                 <p>
+[1667]                   Select your attractions
+[1668]                   and priorities on the
+[1669]                   left, or type a request
+[1670]                   in the AI box.
+[1671]                 </p>
+[1672] 
+[1673]               </div>
+[1674]             )}
+[1675] 
+[1676]         </section>
+[1677] 
+[1678]         {/* ====================================================
+[1679]             RIGHT INSIGHTS COLUMN
+[1680]         ==================================================== */}
+[1681] 
+[1682]         <aside className="planner-insights-col">
+[1683] 
+[1684]           {/* Tradeoff analysis */}
+[1685] 
+[1686]           {result &&
+[1687]             result.feasible && (
+[1688]               <TradeoffView
+[1689]                 weights={
+[1690]                   weights
+[1691]                 }
+[1692] 
+[1693]                 normalizedMetrics={
+[1694]                   result.normalized_metrics
+[1695]                 }
+[1696] 
+[1697]                 summary={
+[1698]                   result.summary
+[1699]                 }
+[1700] 
+[1701]                 previousSummary={
+[1702]                   previousSummary
+[1703]                 }
+[1704] 
+[1705]                 language={
+[1706]                   language
+[1707]                 }
+[1708]               />
+[1709]             )}
+[1710] 
+[1711]           {/* Constraint verification */}
+[1712] 
+[1713]           {result &&
+[1714]             result.feasible && (
+[1715]               <div className="solver-meta-card">
+[1716] 
+[1717]                 <div className="meta-card-header">
+[1718] 
+[1719]                   <ShieldCheck
+[1720]                     size={16}
+[1721]                   />
+[1722] 
+[1723]                   <span>
+[1724]                     CONSTRAINT
+[1725]                     VERIFICATION
+[1726]                   </span>
+[1727] 
+[1728]                 </div>
+[1729] 
+[1730]                 <ul className="meta-checks-list">
+[1731] 
+[1732]                   <li>
+[1733] 
+[1734]                     <CheckCircle2
+[1735]                       size={13}
+[1736]                       className="check-green"
+[1737]                     />
+[1738] 
+[1739]                     <span>
+[1740]                       Time window:{" "}
+[1741]                       {
+[1742]                         result.summary
+[1743]                           ?.day_start
+[1744]                       }
+[1745] 
+[1746]                       {" – "}
+[1747] 
+[1748]                       {
+[1749]                         result.summary
+[1750]                           ?.day_end
+[1751]                       }
+[1752] 
+[1753]                       {" satisfied"}
+[1754]                     </span>
+[1755] 
+[1756]                   </li>
+[1757] 
+[1758]                   <li>
+[1759] 
+[1760]                     <CheckCircle2
+[1761]                       size={13}
+[1762]                       className="check-green"
+[1763]                     />
+[1764] 
+[1765]                     <span>
+[1766]                       Opening hours
+[1767]                       strictly verified
+[1768]                       for all{" "}
+[1769]                       {
+[1770]                         result.stops
+[1771]                           ?.length || 0
+[1772]                       }{" "}
+[1773]                       stops
+[1774]                     </span>
+[1775] 
+[1776]                   </li>
+[1777] 
+[1778]                   <li>
+[1779] 
+[1780]                     <CheckCircle2
+[1781]                       size={13}
+[1782]                       className="check-green"
+[1783]                     />
+[1784] 
+[1785]                     <span>
+[1786]                       Budget limit: ₹
+[1787]                       {
+[1788]                         result.summary
+[1789]                           ?.cost
+[1790]                       }
+[1791] 
+[1792]                       {" / ₹"}
+[1793] 
+[1794]                       {
+[1795]                         budgetCap ||
+[1796]                         "∞"
+[1797]                       }
+[1798]                     </span>
+[1799] 
+[1800]                   </li>
+[1801] 
+[1802]                   <li>
+[1803] 
+[1804]                     <CheckCircle2
+[1805]                       size={13}
+[1806]                       className="check-green"
+[1807]                     />
+[1808] 
+[1809]                     <span>
+[1810]                       Emissions limit:{" "}
+[1811]                       {
+[1812]                         result.summary
+[1813]                           ?.carbon_kg
+[1814]                       }
+[1815] 
+[1816]                       {" kg / "}
+[1817] 
+[1818]                       {
+[1819]                         carbonCap ||
+[1820]                         "∞"
+[1821]                       }
+[1822] 
+[1823]                       {" kg"}
+[1824]                     </span>
+[1825] 
+[1826]                   </li>
+[1827] 
+[1828]                   <li>
+[1829] 
+[1830]                     <CheckCircle2
+[1831]                       size={13}
+[1832]                       className="check-green"
+[1833]                     />
+[1834] 
+[1835]                     <span>
+[1836]                       All{" "}
+[1837]                       {
+[1838]                         mustSeePoiIds.length
+[1839]                       }{" "}
+[1840]                       mandatory
+[1841]                       must-see POIs
+[1842]                       scheduled
+[1843]                     </span>
+[1844] 
+[1845]                   </li>
+[1846] 
+[1847]                 </ul>
+[1848] 
+[1849]               </div>
+[1850]             )}
