@@ -308,7 +308,7 @@ export default function PlannerForm({
     const matchesCategory =
       selectedCategory === 'all' ||
       poi.poi_category ===
-        selectedCategory;
+      selectedCategory;
 
     return (
       matchesSearch &&
@@ -431,9 +431,9 @@ export default function PlannerForm({
 
         if (
           data.parsed_intent?.budget_cap !==
-            undefined &&
+          undefined &&
           data.parsed_intent?.budget_cap !==
-            null &&
+          null &&
           data.parsed_intent?.budget_cap !== ''
         ) {
           setBudgetCap(
@@ -446,9 +446,9 @@ export default function PlannerForm({
 
         if (
           data.parsed_intent?.carbon_cap_kg !==
-            undefined &&
+          undefined &&
           data.parsed_intent?.carbon_cap_kg !==
-            null &&
+          null &&
           data.parsed_intent?.carbon_cap_kg !== ''
         ) {
           setCarbonCap(
@@ -580,7 +580,7 @@ export default function PlannerForm({
 
         if (
           typeof setWeights ===
-            'function' &&
+          'function' &&
           data.parsed_intent
             ?.weights
         ) {
@@ -633,7 +633,7 @@ export default function PlannerForm({
         } else {
           setAiSuccessMessage(
             data.ai_status?.message ||
-              'AI planned your day based on your preferences!'
+            'AI planned your day based on your preferences!'
           );
         }
 
@@ -649,7 +649,7 @@ export default function PlannerForm({
       } else {
         throw new Error(
           data?.error ||
-            'Failed to generate itinerary plan.'
+          'Failed to generate itinerary plan.'
         );
       }
     } catch (err) {
@@ -660,7 +660,7 @@ export default function PlannerForm({
 
       setAiError(
         err.message ||
-          'Could not complete AI planning request.'
+        'Could not complete AI planning request.'
       );
     } finally {
       setAiLoading(false);
@@ -1011,18 +1011,40 @@ export default function PlannerForm({
           </label>
 
           <input
-            type="number"
-            min="0"
-            step="100"
+            type="text"
+            inputMode="numeric"
             value={budgetCap}
-            onChange={(event) =>
-              setBudgetCap(
-                event.target.value
-              )
-            }
+            onChange={(event) => {
+              const value = event.target.value;
+
+              // Allow empty input
+              if (value === '') {
+                setBudgetCap('');
+                return;
+              }
+
+              // Allow digits only
+              if (!/^\d+$/.test(value)) {
+                return;
+              }
+
+              const numericValue = Number(value);
+
+              // Maximum budget: ₹1,00,000
+              if (numericValue > 100000) {
+                setBudgetCap('100000');
+                return;
+              }
+
+              setBudgetCap(value);
+            }}
             placeholder="2500"
             className="form-input"
           />
+
+          <span className="field-hint">
+            Maximum: ₹1,00,000
+          </span>
 
         </div>
 
@@ -1039,18 +1061,46 @@ export default function PlannerForm({
           </label>
 
           <input
-            type="number"
-            min="0"
-            step="0.5"
+            type="text"
+            inputMode="decimal"
             value={carbonCap}
-            onChange={(event) =>
-              setCarbonCap(
-                event.target.value
-              )
-            }
+            onChange={(event) => {
+              const value = event.target.value;
+
+              // Allow empty input
+              if (value === '') {
+                setCarbonCap('');
+                return;
+              }
+
+              // Allow digits with an optional decimal part
+              // Examples: 10, 10.5, 0.5
+              if (!/^\d*\.?\d*$/.test(value)) {
+                return;
+              }
+
+              // Don't allow a standalone "."
+              if (value === '.') {
+                return;
+              }
+
+              const numericValue = Number(value);
+
+              // Maximum carbon cap: 1,000 kg CO₂
+              if (numericValue > 1000) {
+                setCarbonCap('1000');
+                return;
+              }
+
+              setCarbonCap(value);
+            }}
             placeholder="10"
             className="form-input"
           />
+
+          <span className="field-hint">
+            Maximum: 1,000 kg CO₂
+          </span>
 
         </div>
 
@@ -1257,11 +1307,10 @@ export default function PlannerForm({
                   <button
                     key={id}
                     type="button"
-                    className={`transport-option ${
-                      selected
-                        ? 'selected'
-                        : ''
-                    }`}
+                    className={`transport-option ${selected
+                      ? 'selected'
+                      : ''
+                      }`}
                     onClick={() =>
                       toggleTransportMode(
                         id
@@ -1367,7 +1416,7 @@ export default function PlannerForm({
                     }
                   >
                     {category ===
-                    'all'
+                      'all'
                       ? t.allCats
                       : category.toUpperCase()}
                   </option>
@@ -1384,55 +1433,54 @@ export default function PlannerForm({
 
         {mustSeePoiIds.length >
           0 && (
-          <div className="selected-chips-row">
+            <div className="selected-chips-row">
 
-            {mustSeePoiIds.map(
-              (id) => {
+              {mustSeePoiIds.map(
+                (id) => {
 
-                const poi =
-                  pois.find(
-                    (item) =>
-                      item.poi_id ===
-                      id
-                  );
+                  const poi =
+                    pois.find(
+                      (item) =>
+                        item.poi_id ===
+                        id
+                    );
 
-                return (
-                  <div
-                    key={id}
-                    className="selected-poi-chip"
-                  >
+                  return (
+                    <div
+                      key={id}
+                      className="selected-poi-chip"
+                    >
 
-                    <span>
-                      {poi
-                        ? poi.name
-                        : id}
-                    </span>
+                      <span>
+                        {poi
+                          ? poi.name
+                          : id}
+                      </span>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        toggleMustSee(
-                          id
-                        )
-                      }
-                      aria-label={`Remove ${
-                        poi
+                      <button
+                        type="button"
+                        onClick={() =>
+                          toggleMustSee(
+                            id
+                          )
+                        }
+                        aria-label={`Remove ${poi
                           ? poi.name
                           : id
-                      }`}
-                    >
-                      <X
-                        size={13}
-                      />
-                    </button>
+                          }`}
+                      >
+                        <X
+                          size={13}
+                        />
+                      </button>
 
-                  </div>
-                );
-              }
-            )}
+                    </div>
+                  );
+                }
+              )}
 
-          </div>
-        )}
+            </div>
+          )}
 
         {/* POI cards */}
 
@@ -1460,11 +1508,10 @@ export default function PlannerForm({
                   key={
                     poi.poi_id
                   }
-                  className={`poi-select-card ${
-                    isSelected
-                      ? 'selected'
-                      : ''
-                  }`}
+                  className={`poi-select-card ${isSelected
+                    ? 'selected'
+                    : ''
+                    }`}
                   onClick={() =>
                     toggleMustSee(
                       poi.poi_id
@@ -1477,9 +1524,9 @@ export default function PlannerForm({
                   ) => {
                     if (
                       event.key ===
-                        'Enter' ||
+                      'Enter' ||
                       event.key ===
-                        ' '
+                      ' '
                     ) {
                       toggleMustSee(
                         poi.poi_id
@@ -1495,11 +1542,10 @@ export default function PlannerForm({
                     </span>
 
                     <div
-                      className={`checkbox-indicator ${
-                        isSelected
-                          ? 'checked'
-                          : ''
-                      }`}
+                      className={`checkbox-indicator ${isSelected
+                        ? 'checked'
+                        : ''
+                        }`}
                     >
                       {isSelected && (
                         <Check
@@ -1560,28 +1606,28 @@ export default function PlannerForm({
 
                   {(isStart ||
                     isEnd) && (
-                    <div className="poi-route-tags">
+                      <div className="poi-route-tags">
 
-                      {isStart && (
-                        <span className="poi-route-tag start">
-                          <Navigation
-                            size={10}
-                          />
-                          START
-                        </span>
-                      )}
+                        {isStart && (
+                          <span className="poi-route-tag start">
+                            <Navigation
+                              size={10}
+                            />
+                            START
+                          </span>
+                        )}
 
-                      {isEnd && (
-                        <span className="poi-route-tag end">
-                          <Flag
-                            size={10}
-                          />
-                          END
-                        </span>
-                      )}
+                        {isEnd && (
+                          <span className="poi-route-tag end">
+                            <Flag
+                              size={10}
+                            />
+                            END
+                          </span>
+                        )}
 
-                    </div>
-                  )}
+                      </div>
+                    )}
 
                 </div>
               );
