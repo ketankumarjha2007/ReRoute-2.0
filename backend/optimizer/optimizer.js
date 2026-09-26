@@ -19,97 +19,226 @@ const {
 
 /**
  * ============================================================
- * SUPABASE DATA LOADER
+ * SUPABASE POI DATA LOADER
  * ============================================================
  *
- * Loads all active POIs for a city and the corresponding
- * travel matrix into memory before running the DFS optimizer.
+ * ReRoute 2.0
  *
- * This replaces the old SQLite-based implementation.
+ * Loads active POIs for a city.
+ *
+ * IMPORTANT:
+ * The travel matrix is intentionally NOT loaded here.
+ *
+ * The optimizer first builds the smart candidate pool and
+ * then calls loadTravelMatrix() to load only the edges needed
+ * by those candidate POIs.
+ *
+ * This avoids loading a potentially huge travel matrix before
+ * we know which POIs are actually going to participate in DFS.
  */
-async function loadCityData(cityId, candidateIds = null) {
+async function loadCityData(
+  cityId,
+  candidateIds = null
+) {
 
   if (!cityId) {
-    throw new Error('city_id is required');
+    throw new Error(
+      'city_id is required'
+    );
   }
 
-  // ------------------------------------------------------------
-  // 1. Load active POIs
-  // ------------------------------------------------------------
-  const { data: poisData, error: poisError } = await supabase
+
+  // ==========================================================
+  // 1. LOAD ACTIVE POIs
+  // ==========================================================
+
+  const {
+    data: poisData,
+    error: poisError
+  } = await supabase
+
     .from('activities_poi')
+
     .select('*')
-    .eq('city_id', cityId)
-    .eq('status', 'active');
+
+    .eq(
+      'city_id',
+      cityId
+    )
+
+    .eq(
+      'status',
+      'active'
+    );
+
 
   if (poisError) {
+
     throw new Error(
       `Failed to load POIs from Supabase: ${poisError.message}`
     );
   }
 
-  let pois = poisData || [];
 
-  // ------------------------------------------------------------
-  // 2. Filter candidate POIs if supplied
-  // ------------------------------------------------------------
-  if (candidateIds && Array.isArray(candidateIds) && candidateIds.length > 0) {
+  let pois =
+    poisData || [];
 
-    const candidateSet = new Set(candidateIds);
 
-    pois = pois.filter(
-      poi => candidateSet.has(poi.poi_id)
+  // ==========================================================
+  // 2. FILTER EXPLICIT CANDIDATE POIs
+  // ==========================================================
+
+  if (
+    candidateIds &&
+    Array.isArray(candidateIds) &&
+    candidateIds.length > 0
+  ) {
+
+    const candidateSet =
+      new Set(
+        candidateIds
+      );
+
+
+    pois =
+      pois.filter(
+        poi =>
+          candidateSet.has(
+            poi.poi_id
+          )
+      );
+  }
+
+
+  // ==========================================================
+  // 3. BUILD POI LOOKUP MAP
+  // ==========================================================
+
+  const poiMap =
+    new Map();
+
+
+  for (
+    const p of pois
+  ) {
+
+    poiMap.set(
+      p.poi_id,
+      {
+        ...p,
+
+        // ------------------------------------------------------
+        // Money
+        // ------------------------------------------------------
+        //
+        // Always convert money to integer cents.
+        //
+
+        cost_cents:
+          moneyToCents(
+            p.entry_cost
+          ),
+
+
+        // ------------------------------------------------------
+        // Carbon
+        // ------------------------------------------------------
+
+        carbon_kg:
+          Number(
+            p.carbon_kg || 0
+          ),
+
+
+        // ------------------------------------------------------
+        // Duration
+        // ------------------------------------------------------
+
+        duration_minutes:
+          Number(
+            p.typical_duration_minutes || 60
+          )
+      }
     );
   }
 
-  // ------------------------------------------------------------
-  // 3. Build POI lookup map
-  // ------------------------------------------------------------
-  const poiMap = new Map();
 
-  for (const p of pois) {
-
-    poiMap.set(p.poi_id, {
-      ...p,
-
-      // IMPORTANT:
-      // Money is converted directly into integer cents.
-      // We do not perform arithmetic using floating-point money.
-      cost_cents: moneyToCents(p.entry_cost),
-
-      carbon_kg: Number(p.carbon_kg || 0),
-
-      duration_minutes:
-        Number(p.typical_duration_minutes || 60)
-    });
-  }
-
-  // ------------------------------------------------------------
-  // 4. If no POIs remain, return empty graph
-  // ------------------------------------------------------------
-  if (pois.length === 0) {
-    return {
-      poiMap,
-      edgeMap: new Map(),
-      allPois: []
-    };
-  }
-
-  // ------------------------------------------------------------
-  // 5. Get POI IDs
-  // ------------------------------------------------------------
-  const poiIdList = pois.map(
-    poi => poi.poi_id
-  );
-
-  // ------------------------------------------------------------
-  // 6. Load travel matrix
+  // ==========================================================
+  // 4. RETURN POI DATA
+  // ==========================================================
   //
-  // We fetch every edge whose origin and destination belong
-  // to the selected city's POIs.
-  // ------------------------------------------------------------
-  const { data: edgesData, error: edgesError } = await supabase
+  // No travel matrix is loaded here.
+  //
+
+  return {
+
+    poiMap,
+
+    allPois:
+      pois
+  };
+}
+
+
+/**
+ * ============================================================
+ * SUPABASE TRAVEL MATRIX LOADER
+ * ============================================================
+ *
+ * ReRoute 2.0
+ *
+ * Loads ONLY travel edges whose origin and destination POIs
+ * belong to the final smart candidate pool.
+ *
+ * This function is called AFTER:
+ *
+ *     loadCityData()
+ *          ↓
+ *     buildSmartCandidatePool()
+ *
+ * Therefore the database query is limited to the POIs that
+ * the deterministic optimizer can actually search.
+ */
+async function loadTravelMatrix(
+  candidatePoiIds
+) {
+
+  // ==========================================================
+  // 1. HANDLE EMPTY CANDIDATE POOL
+  // ==========================================================
+
+  if (
+    !Array.isArray(candidatePoiIds) ||
+    candidatePoiIds.length === 0
+  ) {
+
+    return new Map();
+  }
+
+
+  // ==========================================================
+  // 2. REMOVE DUPLICATE POI IDs
+  // ==========================================================
+
+  const poiIdList =
+    [
+      ...new Set(
+        candidatePoiIds
+      )
+    ];
+
+
+  // ==========================================================
+  // 3. LOAD REQUIRED TRAVEL EDGES
+  // ==========================================================
+
+  const {
+    data: edgesData,
+    error: edgesError
+  } = await supabase
+
     .from('poi_travel_matrix')
+
     .select(`
       origin_poi_id,
       dest_poi_id,
@@ -120,60 +249,113 @@ async function loadCityData(cityId, candidateIds = null) {
       cost,
       currency
     `)
-    .in('origin_poi_id', poiIdList)
-    .in('dest_poi_id', poiIdList);
+
+    .in(
+      'origin_poi_id',
+      poiIdList
+    )
+
+    .in(
+      'dest_poi_id',
+      poiIdList
+    );
+
 
   if (edgesError) {
+
     throw new Error(
       `Failed to load travel matrix from Supabase: ${edgesError.message}`
     );
   }
 
-  const edges = edgesData || [];
 
-  // ------------------------------------------------------------
-  // 7. Build edge lookup map
-  //
-  // key:
-  // origin_poi_id_destination_poi_id
-  //
-  // value:
-  // [walk edge, cab edge, bus edge, etc.]
-  // ------------------------------------------------------------
-  const edgeMap = new Map();
+  const edges =
+    edgesData || [];
 
-  for (const e of edges) {
+
+  // ==========================================================
+  // 4. BUILD EDGE LOOKUP MAP
+  // ==========================================================
+
+  const edgeMap =
+    new Map();
+
+
+  for (
+    const e of edges
+  ) {
 
     const key =
       `${e.origin_poi_id}_${e.dest_poi_id}`;
 
-    if (!edgeMap.has(key)) {
-      edgeMap.set(key, []);
+
+    if (
+      !edgeMap.has(
+        key
+      )
+    ) {
+
+      edgeMap.set(
+        key,
+        []
+      );
     }
 
-    edgeMap.get(key).push({
 
-      ...e,
+    edgeMap
+      .get(key)
+      .push({
 
-      // Keep monetary arithmetic integer-safe.
-      cost_cents: moneyToCents(e.cost),
+        ...e,
 
-      carbon_kg:
-        Number(e.carbon_kg || 0),
 
-      minutes:
-        Number(e.minutes || 0),
+        // ------------------------------------------------------
+        // Money
+        // ------------------------------------------------------
 
-      distance_km:
-        Number(e.distance_km || 0)
-    });
+        cost_cents:
+          moneyToCents(
+            e.cost
+          ),
+
+
+        // ------------------------------------------------------
+        // Carbon
+        // ------------------------------------------------------
+
+        carbon_kg:
+          Number(
+            e.carbon_kg || 0
+          ),
+
+
+        // ------------------------------------------------------
+        // Travel time
+        // ------------------------------------------------------
+
+        minutes:
+          Number(
+            e.minutes || 0
+          ),
+
+
+        // ------------------------------------------------------
+        // Distance
+        // ------------------------------------------------------
+
+        distance_km:
+          Number(
+            e.distance_km || 0
+          )
+      });
   }
 
-  return {
-    poiMap,
-    edgeMap,
-    allPois: pois
-  };
+
+  // ==========================================================
+  // 5. RETURN EDGE MAP
+  // ==========================================================
+
+  return edgeMap;
 }
 
 
@@ -1159,18 +1341,25 @@ async function optimizeItinerary(options) {
   } = options;
 
   // ==========================================================
-  // LOAD CITY GRAPH FROM SUPABASE
+  // LOAD CITY POIs FROM SUPABASE
   // ==========================================================
+  //
+  // ReRoute 2.0 loads POIs first.
+  // The travel matrix is loaded only after the smart candidate
+  // pool has been created.
+  //
 
   const {
     poiMap,
-    edgeMap,
     allPois
   } = await loadCityData(
     city_id,
     candidate_poi_ids
   );
 
+
+  let edgeMap =
+    new Map();
   // ==========================================================
   // APPLY OPENING-HOURS OVERRIDES
   // ==========================================================
@@ -1396,9 +1585,27 @@ async function optimizeItinerary(options) {
         candidate_poi_ids
     });
 
+  // ==========================================================
+  // LOAD SMART TRAVEL GRAPH
+  // ==========================================================
+  //
+  // Only load travel edges between POIs that are actually
+  // present in the candidate search pool.
+  //
+
+  edgeMap =
+    await loadTravelMatrix(
+      pool
+    );
+
 
   console.log(
     `[ReRoute 2.0] Candidate pool: ${pool.length}/${allPois.length} POIs`
+  );
+
+
+  console.log(
+    `[ReRoute 2.0] Travel graph: ${edgeMap.size} POI connections`
   );
 
   // ==========================================================
@@ -1905,12 +2112,9 @@ async function optimizeItinerary(options) {
  */
 
 module.exports = {
-
   loadCityData,
-
+  loadTravelMatrix,
   chooseBestEdge,
-
   evaluateSequence,
-
   optimizeItinerary
 };
