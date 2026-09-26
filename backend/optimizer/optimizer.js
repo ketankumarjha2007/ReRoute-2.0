@@ -255,9 +255,9 @@ function chooseBestEdge(
       const start =
         destPoi.opens_at
           ? Math.max(
-              arrival,
-              timeToMinutes(destPoi.opens_at)
-            )
+            arrival,
+            timeToMinutes(destPoi.opens_at)
+          )
           : arrival;
 
       return (
@@ -695,7 +695,422 @@ function evaluateSequence(
     }
   };
 }
+/**
+ * ============================================================
+ * BUILD SMART CANDIDATE POOL
+ * ============================================================
+ *
+ * ReRoute 2.0
+ *
+ * Builds a diversified, bounded search pool instead of taking
+ * only the most popular POIs.
+ *
+ * The pool combines:
+ *
+ * - Mandatory POIs
+ * - Start / end POIs
+ * - Popularity + value
+ * - Low-cost POIs
+ * - Low-carbon POIs
+ * - Short-duration POIs
+ * - Balanced multi-objective ranking
+ *
+ * This function only controls the optimizer search space.
+ * Hard constraints and final itinerary selection remain the
+ * responsibility of the deterministic optimizer.
+ */
+function buildSmartCandidatePool({
+  allPois,
+  mustSeePoiIds = [],
+  startPoiId = null,
+  endPoiId = null,
+  maxActivities = 6,
+  explicitCandidateIds = null
+}) {
+  if (!Array.isArray(allPois) || allPois.length === 0) {
+    return [];
+  }
 
+  // ----------------------------------------------------------
+  // Explicit candidate mode
+  // ----------------------------------------------------------
+  //
+  // loadCityData() already filters allPois when explicit IDs
+  // are supplied. Preserve that exact search universe.
+  //
+  if (
+    Array.isArray(explicitCandidateIds) &&
+    explicitCandidateIds.length > 0
+  ) {
+    const allowed = new Set(explicitCandidateIds);
+
+    return allPois
+      .filter(poi => allowed.has(poi.poi_id))
+      .map(poi => poi.poi_id);
+  }
+
+  // ----------------------------------------------------------
+  // POI lookup and deterministic selection state
+  // ----------------------------------------------------------
+
+  const poiMap = new Map(
+    allPois.map(poi => [poi.poi_id, poi])
+  );
+
+  const selected = [];
+  const selectedSet = new Set();
+
+  const addPoi = poiId => {
+    if (!poiId) {
+      return;
+    }
+
+    if (!poiMap.has(poiId)) {
+      return;
+    }
+
+    if (selectedSet.has(poiId)) {
+      return;
+    }
+
+    selected.push(poiId);
+    selectedSet.add(poiId);
+  };
+
+  // ----------------------------------------------------------
+  // Mandatory POIs always get priority
+  // ----------------------------------------------------------
+
+  for (const poiId of mustSeePoiIds) {
+    addPoi(poiId);
+  }
+
+  // ----------------------------------------------------------
+  // Start / end POIs get priority
+  // ----------------------------------------------------------
+
+  addPoi(startPoiId);
+  addPoi(endPoiId);
+
+  const remaining = allPois.filter(
+    poi => !selectedSet.has(poi.poi_id)
+  );
+
+  if (remaining.length === 0) {
+    return selected;
+  }
+
+  // ----------------------------------------------------------
+  // Safe numeric helpers
+  // ----------------------------------------------------------
+
+  const numberValue = (value, fallback = 0) => {
+    const number = Number(value);
+
+    return Number.isFinite(number)
+      ? number
+      : fallback;
+  };
+
+  const getPopularity = poi =>
+    numberValue(poi.popularity_score);
+
+  const getValue = poi =>
+    numberValue(poi.value_score);
+
+  const getCost = poi =>
+    numberValue(
+      poi.cost_cents ??
+      poi.entry_cost_cents ??
+      poi.entry_cost ??
+      poi.cost
+    );
+
+  const getCarbon = poi =>
+    numberValue(
+      poi.carbon_kg ??
+      poi.carbon ??
+      poi.emission_kg
+    );
+
+  const getDuration = poi =>
+    numberValue(
+      poi.duration_minutes ??
+      poi.typical_duration_minutes ??
+      poi.duration ??
+      poi.visit_duration_minutes,
+      60
+    );
+
+  // ----------------------------------------------------------
+  // Normalize a value between 0 and 1
+  // ----------------------------------------------------------
+
+  const normalize = (value, min, max) => {
+    if (max === min) {
+      return 0.5;
+    }
+
+    return (value - min) / (max - min);
+  };
+
+  // ----------------------------------------------------------
+  // Metric ranges
+  // ----------------------------------------------------------
+
+  const costs = remaining.map(getCost);
+  const carbons = remaining.map(getCarbon);
+  const durations = remaining.map(getDuration);
+
+  const minCost = Math.min(...costs);
+  const maxCost = Math.max(...costs);
+
+  const minCarbon = Math.min(...carbons);
+  const maxCarbon = Math.max(...carbons);
+
+  const minDuration = Math.min(...durations);
+  const maxDuration = Math.max(...durations);
+
+  // ----------------------------------------------------------
+  // Ranking 1: popularity + value
+  // ----------------------------------------------------------
+
+  const qualityRanked = [...remaining].sort((a, b) => {
+    const scoreA =
+      getPopularity(a) +
+      getValue(a);
+
+    const scoreB =
+      getPopularity(b) +
+      getValue(b);
+
+    if (scoreB !== scoreA) {
+      return scoreB - scoreA;
+    }
+
+    return String(a.poi_id).localeCompare(
+      String(b.poi_id)
+    );
+  });
+
+  // ----------------------------------------------------------
+  // Ranking 2: low cost
+  // ----------------------------------------------------------
+
+  const lowCostRanked = [...remaining].sort((a, b) => {
+    const difference =
+      getCost(a) -
+      getCost(b);
+
+    if (difference !== 0) {
+      return difference;
+    }
+
+    return String(a.poi_id).localeCompare(
+      String(b.poi_id)
+    );
+  });
+
+  // ----------------------------------------------------------
+  // Ranking 3: low carbon
+  // ----------------------------------------------------------
+
+  const lowCarbonRanked = [...remaining].sort((a, b) => {
+    const difference =
+      getCarbon(a) -
+      getCarbon(b);
+
+    if (difference !== 0) {
+      return difference;
+    }
+
+    return String(a.poi_id).localeCompare(
+      String(b.poi_id)
+    );
+  });
+
+  // ----------------------------------------------------------
+  // Ranking 4: short duration
+  // ----------------------------------------------------------
+
+  const shortDurationRanked = [...remaining].sort((a, b) => {
+    const difference =
+      getDuration(a) -
+      getDuration(b);
+
+    if (difference !== 0) {
+      return difference;
+    }
+
+    return String(a.poi_id).localeCompare(
+      String(b.poi_id)
+    );
+  });
+
+  // ----------------------------------------------------------
+  // Ranking 5: balanced multi-objective ranking
+  // ----------------------------------------------------------
+
+  const smartRanked = [...remaining].sort((a, b) => {
+    const aCost =
+      1 -
+      normalize(
+        getCost(a),
+        minCost,
+        maxCost
+      );
+
+    const bCost =
+      1 -
+      normalize(
+        getCost(b),
+        minCost,
+        maxCost
+      );
+
+    const aCarbon =
+      1 -
+      normalize(
+        getCarbon(a),
+        minCarbon,
+        maxCarbon
+      );
+
+    const bCarbon =
+      1 -
+      normalize(
+        getCarbon(b),
+        minCarbon,
+        maxCarbon
+      );
+
+    const aTime =
+      1 -
+      normalize(
+        getDuration(a),
+        minDuration,
+        maxDuration
+      );
+
+    const bTime =
+      1 -
+      normalize(
+        getDuration(b),
+        minDuration,
+        maxDuration
+      );
+
+    const aScore =
+      getPopularity(a) * 0.25 +
+      getValue(a) * 0.25 +
+      aCost * 0.15 +
+      aCarbon * 0.20 +
+      aTime * 0.15;
+
+    const bScore =
+      getPopularity(b) * 0.25 +
+      getValue(b) * 0.25 +
+      bCost * 0.15 +
+      bCarbon * 0.20 +
+      bTime * 0.15;
+
+    if (bScore !== aScore) {
+      return bScore - aScore;
+    }
+
+    return String(a.poi_id).localeCompare(
+      String(b.poi_id)
+    );
+  });
+
+  // ----------------------------------------------------------
+  // Bounded candidate pool
+  // ----------------------------------------------------------
+  //
+  // Previous implementation effectively limited the default
+  // search to around 8 POIs.
+  //
+  // ReRoute 2.0 uses a diversified pool of up to 24 POIs.
+  //
+  const targetPoolSize = Math.min(
+    allPois.length,
+    Math.max(
+      16,
+      maxActivities * 4
+    ),
+    24
+  );
+
+  const strategyLimit = Math.max(
+    3,
+    Math.ceil(targetPoolSize / 5)
+  );
+
+  // ----------------------------------------------------------
+  // Add candidates from ranking without duplicates
+  // ----------------------------------------------------------
+
+  const addFromRanking = (ranking, limit) => {
+    let added = 0;
+
+    for (const poi of ranking) {
+      if (selectedSet.has(poi.poi_id)) {
+        continue;
+      }
+
+      addPoi(poi.poi_id);
+
+      added++;
+
+      if (added >= limit) {
+        break;
+      }
+    }
+  };
+
+  // ----------------------------------------------------------
+  // Diversified candidate selection
+  // ----------------------------------------------------------
+
+  addFromRanking(
+    qualityRanked,
+    strategyLimit
+  );
+
+  addFromRanking(
+    lowCostRanked,
+    strategyLimit
+  );
+
+  addFromRanking(
+    lowCarbonRanked,
+    strategyLimit
+  );
+
+  addFromRanking(
+    shortDurationRanked,
+    strategyLimit
+  );
+
+  addFromRanking(
+    smartRanked,
+    targetPoolSize
+  );
+
+  // ----------------------------------------------------------
+  // Safety fill
+  // ----------------------------------------------------------
+
+  for (const poi of smartRanked) {
+    if (selected.length >= targetPoolSize) {
+      break;
+    }
+
+    addPoi(poi.poi_id);
+  }
+
+  return selected;
+}
 
 /**
  * ============================================================
@@ -709,39 +1124,39 @@ function evaluateSequence(
 async function optimizeItinerary(options) {
 
   const {
-  city_id,
+    city_id,
 
-  day_start = '09:00',
+    day_start = '09:00',
 
-  day_end = '18:00',
+    day_end = '18:00',
 
-  budget_cap,
+    budget_cap,
 
-  carbon_cap_kg,
+    carbon_cap_kg,
 
-  must_see_poi_ids = [],
+    must_see_poi_ids = [],
 
-  candidate_poi_ids = null,
+    candidate_poi_ids = null,
 
-  start_poi_id = null,
+    start_poi_id = null,
 
-  end_poi_id = null,
+    end_poi_id = null,
 
-  allowed_modes = null,
+    allowed_modes = null,
 
-  weights = {
-    cost: 0.33,
-    time: 0.33,
-    carbon: 0.34
-  },
+    weights = {
+      cost: 0.33,
+      time: 0.33,
+      carbon: 0.34
+    },
 
-  max_activities = 6,
+    max_activities = 6,
 
-  // Temporary opening-hours changes used by
-  // the single-constraint relaxation engine.
-  opening_hours_overrides = {}
+    // Temporary opening-hours changes used by
+    // the single-constraint relaxation engine.
+    opening_hours_overrides = {}
 
-} = options;
+  } = options;
 
   // ==========================================================
   // LOAD CITY GRAPH FROM SUPABASE
@@ -756,83 +1171,83 @@ async function optimizeItinerary(options) {
     candidate_poi_ids
   );
 
-// ==========================================================
-// APPLY OPENING-HOURS OVERRIDES
-// ==========================================================
-//
-// These temporary overrides are used by the
-// single-constraint relaxation engine.
-//
-// Supported keys:
-//   - POI ID:  "poi_xxxxx"
-//   - POI name: "name:Sunset Point"
-//
-// They affect only this optimizer run.
-// ==========================================================
+  // ==========================================================
+  // APPLY OPENING-HOURS OVERRIDES
+  // ==========================================================
+  //
+  // These temporary overrides are used by the
+  // single-constraint relaxation engine.
+  //
+  // Supported keys:
+  //   - POI ID:  "poi_xxxxx"
+  //   - POI name: "name:Sunset Point"
+  //
+  // They affect only this optimizer run.
+  // ==========================================================
 
-if (
-  opening_hours_overrides &&
-  typeof opening_hours_overrides === 'object'
-) {
-  for (
-    const [overrideKey, overrideValue]
-    of Object.entries(opening_hours_overrides)
+  if (
+    opening_hours_overrides &&
+    typeof opening_hours_overrides === 'object'
   ) {
-    if (!overrideValue) {
-      continue;
-    }
-
-    let targetPoi = null;
-
-    // Exact POI-ID match
-    if (poiMap.has(overrideKey)) {
-      targetPoi = poiMap.get(overrideKey);
-    }
-
-    // Name-based match
-    if (
-      !targetPoi &&
-      overrideKey.startsWith('name:')
+    for (
+      const [overrideKey, overrideValue]
+      of Object.entries(opening_hours_overrides)
     ) {
-      const targetName =
-        overrideKey.slice(5);
+      if (!overrideValue) {
+        continue;
+      }
 
-      const matchingPoi =
-        allPois.find(
-          poi => poi.name === targetName
-        );
+      let targetPoi = null;
 
-      if (matchingPoi) {
-        targetPoi =
-          poiMap.get(
-            matchingPoi.poi_id
+      // Exact POI-ID match
+      if (poiMap.has(overrideKey)) {
+        targetPoi = poiMap.get(overrideKey);
+      }
+
+      // Name-based match
+      if (
+        !targetPoi &&
+        overrideKey.startsWith('name:')
+      ) {
+        const targetName =
+          overrideKey.slice(5);
+
+        const matchingPoi =
+          allPois.find(
+            poi => poi.name === targetName
           );
+
+        if (matchingPoi) {
+          targetPoi =
+            poiMap.get(
+              matchingPoi.poi_id
+            );
+        }
+      }
+
+      // Ignore overrides for POIs that are not
+      // part of this optimization run.
+      if (!targetPoi) {
+        continue;
+      }
+
+      // Override opening time if supplied
+      if (
+        overrideValue.opens_at !== undefined
+      ) {
+        targetPoi.opens_at =
+          overrideValue.opens_at;
+      }
+
+      // Override closing time if supplied
+      if (
+        overrideValue.closes_at !== undefined
+      ) {
+        targetPoi.closes_at =
+          overrideValue.closes_at;
       }
     }
-
-    // Ignore overrides for POIs that are not
-    // part of this optimization run.
-    if (!targetPoi) {
-      continue;
-    }
-
-    // Override opening time if supplied
-    if (
-      overrideValue.opens_at !== undefined
-    ) {
-      targetPoi.opens_at =
-        overrideValue.opens_at;
-    }
-
-    // Override closing time if supplied
-    if (
-      overrideValue.closes_at !== undefined
-    ) {
-      targetPoi.closes_at =
-        overrideValue.closes_at;
-    }
   }
-}
   // ==========================================================
   // EMPTY CITY
   // ==========================================================
@@ -939,114 +1354,52 @@ if (
 
 
   // ==========================================================
-  // BUILD CANDIDATE POOL
+  // BUILD SMART CANDIDATE POOL
   // ==========================================================
+  //
+  // ReRoute 2.0
+  //
+  // The optimizer now uses the diversified candidate pool
+  // defined above instead of the old popularity-only pool.
+  //
+  // Candidate selection considers:
+  //
+  // 1. Mandatory POIs
+  // 2. Start / End POIs
+  // 3. Popularity + value
+  // 4. Low cost
+  // 5. Low carbon
+  // 6. Short duration
+  // 7. Balanced multi-objective ranking
+  //
+  // The final itinerary is still selected by the existing
+  // deterministic DFS + constraint validation + scoring logic.
+  //
 
-  let pool = [];
+  const pool =
+    buildSmartCandidatePool({
+      allPois,
 
-  if (
-    must_see_poi_ids.length > 0
-  ) {
+      mustSeePoiIds:
+        must_see_poi_ids,
 
-    // Start with mandatory POIs.
-    pool = [
-      ...must_see_poi_ids
-    ];
+      startPoiId:
+        start_poi_id,
 
+      endPoiId:
+        end_poi_id,
 
-    // Add required start.
-    if (
-      start_poi_id &&
-      !pool.includes(start_poi_id) &&
-      poiMap.has(start_poi_id)
-    ) {
+      maxActivities:
+        max_activities,
 
-      pool.push(start_poi_id);
-    }
-
-
-    // Add required end.
-    if (
-      end_poi_id &&
-      !pool.includes(end_poi_id) &&
-      poiMap.has(end_poi_id)
-    ) {
-
-      pool.push(end_poi_id);
-    }
-
-
-    // Add additional high-value POIs.
-    const remaining =
-      allPois
-
-        .filter(
-          p => !pool.includes(p.poi_id)
-        )
-
-        .sort(
-          (a, b) =>
-            (b.popularity_score || 0) -
-            (a.popularity_score || 0)
-        );
+      explicitCandidateIds:
+        candidate_poi_ids
+    });
 
 
-    const limit =
-      candidate_poi_ids
-        ? remaining.length
-        : Math.min(
-            10,
-            max_activities + 2
-          );
-
-
-    for (
-      const r of remaining.slice(
-        0,
-        limit
-      )
-    ) {
-
-      pool.push(
-        r.poi_id
-      );
-    }
-
-  } else {
-
-    // No mandatory attractions.
-    // Select highest-value candidates.
-
-    pool =
-      allPois
-
-        .sort(
-          (a, b) =>
-            (
-              (b.popularity_score || 0) +
-              (b.value_score || 0)
-            ) -
-            (
-              (a.popularity_score || 0) +
-              (a.value_score || 0)
-            )
-        )
-
-        .slice(
-          0,
-          candidate_poi_ids
-            ? allPois.length
-            : Math.min(
-                10,
-                max_activities + 2
-              )
-        )
-
-        .map(
-          p => p.poi_id
-        );
-  }
-
+  console.log(
+    `[ReRoute 2.0] Candidate pool: ${pool.length}/${allPois.length} POIs`
+  );
 
   // ==========================================================
   // SEARCH STATE
@@ -1083,7 +1436,7 @@ if (
     const satisfiesEnd =
       !end_poi_id ||
       currentSeq[
-        currentSeq.length - 1
+      currentSeq.length - 1
       ] === end_poi_id;
 
 
@@ -1166,7 +1519,7 @@ if (
       end_poi_id &&
       currentSeq.length > 0 &&
       currentSeq[
-        currentSeq.length - 1
+      currentSeq.length - 1
       ] === end_poi_id
     ) {
 
@@ -1231,7 +1584,7 @@ if (
 
         const lastId =
           currentSeq[
-            currentSeq.length - 1
+          currentSeq.length - 1
           ];
 
         const key =
@@ -1321,7 +1674,7 @@ if (
 
       if (
         nextTotalMins >
-          availableDayMins &&
+        availableDayMins &&
         feasiblePlans.length > 0
       ) {
 
@@ -1331,7 +1684,7 @@ if (
 
       if (
         nextTotalCostCents >
-          budgetCents &&
+        budgetCents &&
         feasiblePlans.length > 0
       ) {
 
@@ -1341,7 +1694,7 @@ if (
 
       if (
         nextTotalCarbon >
-          carbonCap &&
+        carbonCap &&
         feasiblePlans.length > 0
       ) {
 
