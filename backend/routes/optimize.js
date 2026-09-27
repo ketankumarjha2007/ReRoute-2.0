@@ -39,6 +39,7 @@ router.post('/', async (req, res) => {
 
       city_id,
 
+      day_date,
       day_start,
       day_end,
 
@@ -92,6 +93,34 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // ==========================================================
+    // VALIDATE PLANNING DATE
+    // ==========================================================
+
+    if (!day_date) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_INPUT',
+          message: 'day_date is required.'
+        }
+      });
+    }
+
+    const today = new Date();
+
+    const todayDate =
+      `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    if (day_date < todayDate) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_INPUT',
+          message: 'Planning date cannot be in the past.'
+        }
+      });
+    }
 
     // ==========================================================
     // NORMALIZE TIME FIELDS
@@ -146,24 +175,24 @@ router.post('/', async (req, res) => {
 
     const normalizedCandidates =
       candidate_poi_ids === null ||
-      candidate_poi_ids === undefined
+        candidate_poi_ids === undefined
 
         ? null
 
         : normalizeArray(
-            candidate_poi_ids
-          );
+          candidate_poi_ids
+        );
 
 
     const normalizedModes =
       allowed_modes === null ||
-      allowed_modes === undefined
+        allowed_modes === undefined
 
         ? null
 
         : normalizeArray(
-            allowed_modes
-          );
+          allowed_modes
+        );
 
 
     // ==========================================================
@@ -396,7 +425,7 @@ router.post('/', async (req, res) => {
       diagnosis.binding_constraint &&
 
       diagnosis.binding_constraint.type ===
-        'OPENING_HOURS' &&
+      'OPENING_HOURS' &&
 
       !diagnosis.binding_constraint.poi_id
 
@@ -410,7 +439,7 @@ router.post('/', async (req, res) => {
           violation =>
 
             violation.type ===
-              'OPENING_HOURS' &&
+            'OPENING_HOURS' &&
 
             violation.poi_id
 
@@ -559,28 +588,28 @@ router.post('/', async (req, res) => {
 
           ? {
 
-              constraint:
-                relaxedPlanData.constraint_name,
+            constraint:
+              relaxedPlanData.constraint_name,
 
-              action:
-                relaxedPlanData.action,
+            action:
+              relaxedPlanData.action,
 
-              poi_name:
-                relaxedPlanData.poi_name,
+            poi_name:
+              relaxedPlanData.poi_name,
 
-              original:
-                relaxedPlanData.original_value,
+            original:
+              relaxedPlanData.original_value,
 
-              relaxed:
-                relaxedPlanData.relaxed_value,
+            relaxed:
+              relaxedPlanData.relaxed_value,
 
-              difference:
-                relaxedPlanData.difference,
+            difference:
+              relaxedPlanData.difference,
 
-              description:
-                relaxedPlanData.description
+            description:
+              relaxedPlanData.description
 
-            }
+          }
 
           : null,
 

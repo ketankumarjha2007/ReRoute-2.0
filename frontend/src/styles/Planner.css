@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    ReRoute Optimizer Dashboard Styles (Planner.css)
    Visual Language:
      Background: #F5F7F2
@@ -7,7 +7,7 @@
      Accent:     #B7F34A
      Secondary:  #64748B
      CTA:        #101713
-     Radius:     18px–24px
+     Radius:     18pxâ€“24px
    ========================================================================== */
 
 :root {
@@ -818,6 +818,45 @@
   gap: 20px;
 }
 
+
+/* ============================================================
+   LIVE REOPTIMIZATION STATUS
+   ============================================================ */
+
+.reoptimization-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 10px 0 14px;
+  padding: 7px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 14px rgba(16, 23, 19, 0.06);
+  animation: reoptimization-enter 180ms ease-out;
+}
+
+.reoptimization-status svg {
+  flex-shrink: 0;
+  color: var(--cta-dark);
+}
+
+@keyframes reoptimization-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 .results-header-row {
   display: flex;
   align-items: center;
@@ -1929,7 +1968,7 @@
    This fills in classes Planner.jsx already renders but that had no
    styling (the map section, the selected-place callout, the reset
    button, the empty state, the loading spinner icon) and adds a
-   restrained set of "alive" touches — one entrance moment where a
+   restrained set of "alive" touches â€” one entrance moment where a
    result appears, consistent focus states, and tighter mobile rhythm.
    ========================================================================== */
 
@@ -1962,7 +2001,7 @@
 }
 
 /* ==========================================================================
-   Map Section (sidebar) — was previously unstyled
+   Map Section (sidebar) â€” was previously unstyled
    ========================================================================== */
 .planner-map-section {
   background-color: var(--card-bg);
@@ -2292,7 +2331,8 @@
     font-size: 1.65rem;
   }
 
-  .results-header-row {
+  
+.results-header-row {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
@@ -2355,3 +2395,4 @@
     width: 52px;
   }
 }
+

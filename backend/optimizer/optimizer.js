@@ -1,4 +1,5 @@
 const supabase = require('../supabase');
+const { resolveTravel } = require("../travel/travelResolver");
 
 const {
   timeToMinutes,
@@ -620,6 +621,9 @@ function evaluateSequence(
         );
 
       if (!edge) {
+
+        console.log(
+        );
 
         missingEdges.push({
           from: prevPoiId,
@@ -1303,6 +1307,163 @@ function buildSmartCandidatePool({
  * This function is now ASYNC because the POI/travel graph
  * comes from Supabase.
  */
+
+const productionTravelGraphCache = new Map();
+
+async function buildProductionTravelGraph(
+  pool,
+  allowedModes = null,
+  allPois = []
+) {
+  // pool contains POI IDs.
+
+  const cacheModes =
+    Array.isArray(allowedModes) &&
+    allowedModes.length > 0
+      ? allowedModes
+          .map(mode => String(mode).toLowerCase())
+          .sort()
+      : ["cab"];
+
+  const cacheKey =
+    JSON.stringify({
+      pool: [...pool].sort(),
+      modes: cacheModes
+    });
+
+  const cachedGraph =
+    productionTravelGraphCache.get(cacheKey);
+
+  if (cachedGraph) {
+    console.log(
+      `[ReRoute 2.0] Reusing cached travel graph: ${cachedGraph.size} POI connections`
+    );
+
+    return new Map(
+      Array.from(cachedGraph.entries()).map(([key, edges]) => [
+        key,
+        edges.map(edge => ({ ...edge }))
+      ])
+    );
+  }
+
+  // allPois contains the full POI objects required by
+  // the dynamic routing provider.
+
+  const modes =
+    Array.isArray(allowedModes) &&
+    allowedModes.length > 0
+      ? allowedModes
+      : ["cab"];
+
+  const edgeMap =
+    await loadTravelMatrix(
+      pool
+    );
+
+  const poiById =
+    new Map(
+      allPois.map(poi => [
+        poi.poi_id,
+        poi
+      ])
+    );
+
+  const poolPois =
+    pool
+      .map(poiId => poiById.get(poiId))
+      .filter(Boolean);
+
+  if (poolPois.length !== pool.length) {
+    throw new Error(
+      `Production travel graph could not resolve all candidate POI IDs. Expected ${pool.length}, got ${poolPois.length}.`
+    );
+  }
+
+  let dynamicRoutes = 0;
+
+  for (const fromPoi of poolPois) {
+    for (const toPoi of poolPois) {
+
+      if (
+        !fromPoi ||
+        !toPoi ||
+        fromPoi.poi_id === toPoi.poi_id
+      ) {
+        continue;
+      }
+
+      const key =
+        `${fromPoi.poi_id}_${toPoi.poi_id}`;
+
+      const existingEdges =
+        edgeMap.get(key) || [];
+
+      const hasCompatibleMatrixEdge =
+        existingEdges.some(existingEdge => {
+          return modes.includes(
+            String(
+              existingEdge.mode || ""
+            ).toLowerCase()
+          );
+        });
+
+      if (hasCompatibleMatrixEdge) {
+        continue;
+      }
+
+      try {
+        const edge =
+          await resolveTravel({
+            fromPoi,
+            toPoi,
+            allowedModes: modes
+          });
+
+        if (!edge) {
+          continue;
+        }
+
+        edgeMap.set(
+          key,
+          [edge]
+        );
+
+        dynamicRoutes++;
+
+      } catch (error) {
+        console.warn(
+          `[ReRoute 2.0] Unable to resolve ${fromPoi.poi_id} -> ${toPoi.poi_id}: ${error.message}`
+        );
+      }
+    }
+  }
+
+  console.log(
+    `[ReRoute 2.0] Dynamic routes resolved: ${dynamicRoutes}`
+  );
+
+
+  const graphToCache  =
+    new Map(
+      Array.from(edgeMap.entries()).map(([key, edges]) => [
+        key,
+        edges.map(edge => ({ ...edge }))
+      ])
+    );
+
+  productionTravelGraphCache.set(
+    cacheKey,
+    graphToCache
+  );
+
+  console.log(
+    `[ReRoute 2.0] Final travel graph: ${edgeMap.size} POI connections`
+  );
+
+  return edgeMap;
+}
+
 async function optimizeItinerary(options) {
 
   const {
@@ -1331,6 +1492,8 @@ async function optimizeItinerary(options) {
       time: 0.33,
       carbon: 0.34
     },
+
+    planning_intent = 'route_optimization',
 
     max_activities = 6,
 
@@ -1594,16 +1757,14 @@ async function optimizeItinerary(options) {
   //
 
   edgeMap =
-    await loadTravelMatrix(
-      pool
+    await buildProductionTravelGraph(
+      pool,
+      allowed_modes,
+      allPois
     );
-
-
   console.log(
     `[ReRoute 2.0] Candidate pool: ${pool.length}/${allPois.length} POIs`
   );
-
-
   console.log(
     `[ReRoute 2.0] Travel graph: ${edgeMap.size} POI connections`
   );
@@ -1613,6 +1774,7 @@ async function optimizeItinerary(options) {
   // ==========================================================
 
   const feasiblePlans = [];
+  const feasiblePlanCounts = new Map();
 
   const allEvaluatedPlans = [];
 
@@ -1692,6 +1854,14 @@ async function optimizeItinerary(options) {
 
           feasiblePlans.push(
             evalPlan
+          );
+
+          const planLength =
+            Number(evalPlan.summary?.stops_count) || 0;
+
+          feasiblePlanCounts.set(
+            planLength,
+            (feasiblePlanCounts.get(planLength) || 0) + 1
           );
 
         } else {
@@ -1881,8 +2051,7 @@ async function optimizeItinerary(options) {
 
       if (
         nextTotalMins >
-        availableDayMins &&
-        feasiblePlans.length > 0
+        availableDayMins
       ) {
 
         continue;
@@ -1891,8 +2060,7 @@ async function optimizeItinerary(options) {
 
       if (
         nextTotalCostCents >
-        budgetCents &&
-        feasiblePlans.length > 0
+        budgetCents
       ) {
 
         continue;
@@ -1901,8 +2069,7 @@ async function optimizeItinerary(options) {
 
       if (
         nextTotalCarbon >
-        carbonCap &&
-        feasiblePlans.length > 0
+        carbonCap
       ) {
 
         continue;
@@ -2064,6 +2231,11 @@ async function optimizeItinerary(options) {
   // SCORE FEASIBLE PLANS
   // ==========================================================
 
+  console.log(
+    '[ReRoute 2.0] Feasible plan counts:',
+    Object.fromEntries(feasiblePlanCounts)
+  );
+
   const scored =
     scoreCandidates(
       feasiblePlans,
@@ -2080,10 +2252,22 @@ async function optimizeItinerary(options) {
         carbon_cap_kg:
           carbonCap !== Infinity
             ? carbonCap
-            : null
+            : null,
+
+        planning_intent
       }
     );
 
+
+  console.log('[ReRoute 2.0] Top scored plans:', scored.slice(0, 10).map(p => ({
+    stops: p.summary?.stops_count,
+    minutes: p.summary?.minutes,
+    cost: p.summary?.cost,
+    carbon: p.summary?.carbon_kg,
+    score: p.score,
+    richness_penalty: p.normalized_metrics?.richness_penalty,
+    utilization: p.normalized_metrics?.itinerary_utilization
+  })));
 
   const bestPlan =
     scored[0];
@@ -2118,3 +2302,13 @@ module.exports = {
   evaluateSequence,
   optimizeItinerary
 };
+
+
+
+
+
+
+
+
+
+

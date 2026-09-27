@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+
 import {
   Search,
   Sparkles,
@@ -16,8 +17,6 @@ import {
   Flag,
   Footprints,
   Car,
-
-
 } from 'lucide-react';
 
 import { planMyDay } from '../services/api';
@@ -57,7 +56,7 @@ export default function PlannerForm({
   allowedModes,
   setAllowedModes,
 
-  // Optional — AI can seed optimization weights
+  // Optional - AI can seed optimization weights
   setWeights,
 
   onOptimize,
@@ -65,7 +64,7 @@ export default function PlannerForm({
 
   onAiPlanComplete,
 
-  language = 'en'
+  language = 'en',
 }) {
   const [poiSearch, setPoiSearch] = useState('');
   const [selectedCategory, setSelectedCategory] =
@@ -83,25 +82,25 @@ export default function PlannerForm({
 
   const suggestions = [
     {
-      label: '🌱 Low-carbon day',
+      label: 'Low-carbon day',
       prompt:
-        'Plan a low-carbon day in Bengaluru from 08:00 to 20:00. Choose practical start and end locations, prioritize walking, and prefer green attractions.'
+        'Plan a low-carbon day in Bengaluru from 08:00 to 20:00. Choose practical start and end locations, prioritize walking, and prefer green attractions.',
     },
     {
-      label: '💰 Budget-friendly',
+      label: 'Budget-friendly',
       prompt:
-        'Plan a budget-friendly day in Bengaluru from 08:00 to 20:00 under ₹1200. Choose practical start and end locations, cultural sights and parks, and prefer low-cost transport.'
+        'Plan a budget-friendly day in Bengaluru from 08:00 to 20:00 under ₹1200. Choose practical start and end locations, cultural sights and parks, and prefer low-cost transport.',
     },
     {
-      label: '⚡ Fastest day',
+      label: 'Fastest day',
       prompt:
-        'Plan a fast, time-efficient day in Bengaluru from 08:00 to 18:00. Choose practical start and end locations and prioritize the shortest feasible travel time.'
+        'Plan a fast, time-efficient day in Bengaluru from 08:00 to 18:00. Choose practical start and end locations and prioritize the shortest feasible travel time.',
     },
     {
-      label: '📍 Must-see highlights',
+      label: 'Must-see highlights',
       prompt:
-        'Plan a day in Bengaluru from 08:00 to 20:00 covering the most important landmarks and historic attractions. Choose practical start and end locations.'
-    }
+        'Plan a day in Bengaluru from 08:00 to 20:00 covering the most important landmarks and historic attractions. Choose practical start and end locations.',
+    },
   ];
 
   // ============================================================
@@ -118,9 +117,9 @@ export default function PlannerForm({
       aiHeader: 'AI PLAN MY DAY',
 
       aiPlaceholder:
-        'What does your ideal day look like? (e.g. "Low carbon day in Bengaluru under ₹1500...")',
+        'What does your ideal day look like? (e.g. "Low carbon day in Bengaluru under 1500...")',
 
-      aiBtn: 'Plan My Day →',
+      aiBtn: 'Plan My Day',
 
       aiThinking:
         'AI Concierge is reasoning about your day...',
@@ -133,11 +132,16 @@ export default function PlannerForm({
 
       endTime: 'Day End Time',
 
-      budget: 'Budget Cap (₹)',
+      budget: 'Budget Cap',
 
       carbon: 'Carbon Cap (kg CO₂)',
 
       route: 'ROUTE CONFIGURATION',
+
+      routeSubtitle:
+        'Define the hard start, end and transport constraints.',
+
+      hardConstraints: 'HARD CONSTRAINTS',
 
       startLocation: 'Start Location',
 
@@ -149,7 +153,15 @@ export default function PlannerForm({
       endHint:
         'Where your itinerary finishes',
 
+      selectStart:
+        'Select start location',
+
+      selectEnd:
+        'Select end location',
+
       transport: 'ALLOWED TRANSPORT MODES',
+
+      selected: 'selected',
 
       walk: 'Walk',
 
@@ -171,21 +183,33 @@ export default function PlannerForm({
         'selected (strictly enforced)',
 
       optimizeBtn:
-        'Optimize My Route →',
+        'Optimize My Route',
 
       optimizingBtn:
         'Optimizing Route...',
 
       clearBtn:
-        'Clear AI Prompt'
+        'Clear AI Prompt',
+
+      minutes: 'min',
+
+      start: 'START',
+
+      end: 'END',
+
+      maximumBudget:
+        'Maximum: ₹1,00,000',
+
+      maximumCarbon:
+        'Maximum: 1,000 kg CO₂',
     },
 
     hi: {
       planYourDay:
-        'यात्रा मार्ग निर्धारित करें',
+        'यात्रा की योजना बनाएँ',
 
       planSubtitle:
-        'प्रतिबंध चुनें या AI सहायक की मदद से अपनी यात्रा की योजना बनाएं।',
+        'प्रतिबंध निर्धारित करें या AI सहायक की मदद से अपनी यात्रा की योजना बनाएँ।',
 
       aiHeader:
         'AI यात्रा योजना',
@@ -194,10 +218,10 @@ export default function PlannerForm({
         'आपका आदर्श दिन कैसा दिखता है?',
 
       aiBtn:
-        'दिन की योजना बनाएं →',
+        'दिन की योजना बनाएँ',
 
       aiThinking:
-        'AI आपकी यात्रा की योजना बना रहा है...',
+        'AI सहायक आपकी यात्रा की योजना बना रहा है...',
 
       destination:
         'गंतव्य शहर',
@@ -220,6 +244,12 @@ export default function PlannerForm({
       route:
         'मार्ग कॉन्फ़िगरेशन',
 
+      routeSubtitle:
+        'प्रारंभ, अंतिम स्थान और परिवहन की अनिवार्य सीमाएँ निर्धारित करें।',
+
+      hardConstraints:
+        'हार्ड प्रतिबंध',
+
       startLocation:
         'प्रारंभ स्थान',
 
@@ -227,13 +257,22 @@ export default function PlannerForm({
         'अंतिम स्थान',
 
       startHint:
-        'यात्रा यहां से शुरू होगी',
+        'यात्रा यहाँ से शुरू होगी',
 
       endHint:
-        'यात्रा यहां समाप्त होगी',
+        'यात्रा यहाँ समाप्त होगी',
+
+      selectStart:
+        'प्रारंभ स्थान चुनें',
+
+      selectEnd:
+        'अंतिम स्थान चुनें',
 
       transport:
         'अनुमत परिवहन साधन',
+
+      selected:
+        'चयनित',
 
       walk:
         'पैदल',
@@ -248,27 +287,39 @@ export default function PlannerForm({
         'मेट्रो',
 
       mustSee:
-        'अनिवार्य आकर्षण',
+        'अनिवार्य आकर्षण (हार्ड प्रतिबंध)',
 
       searchPois:
         'आकर्षण खोजें...',
 
       allCats:
-        'सभी श्रेणियां',
+        'सभी श्रेणियाँ',
 
       selectedCount:
         'चयनित (अनिवार्य)',
 
       optimizeBtn:
-        'मार्ग अनुकूलित करें →',
+        'मार्ग अनुकूलित करें',
 
       optimizingBtn:
         'मार्ग अनुकूलित हो रहा है...',
 
       clearBtn:
-        'AI प्रॉम्प्ट साफ़ करें'
-    }
-  }[language];
+        'AI प्रॉम्प्ट साफ़ करें',
+
+      minutes: 'मिनट',
+
+      start: 'प्रारंभ',
+
+      end: 'अंत',
+
+      maximumBudget:
+        'अधिकतम: ₹1,00,000',
+
+      maximumCarbon:
+        'अधिकतम: 1,000 kg CO₂',
+    },
+  }[language] || null;
 
   // ============================================================
   // CATEGORIES
@@ -282,7 +333,7 @@ export default function PlannerForm({
           .map((poi) => poi.poi_category)
           .filter(Boolean)
       )
-    )
+    ),
   ];
 
   // ============================================================
@@ -295,12 +346,12 @@ export default function PlannerForm({
 
     const matchesSearch =
       query === '' ||
-      poi.name
+      String(poi.name || '')
         .toLowerCase()
         .includes(query) ||
       (
         poi.tags &&
-        poi.tags
+        String(poi.tags)
           .toLowerCase()
           .includes(query)
       );
@@ -308,7 +359,7 @@ export default function PlannerForm({
     const matchesCategory =
       selectedCategory === 'all' ||
       poi.poi_category ===
-      selectedCategory;
+        selectedCategory;
 
     return (
       matchesSearch &&
@@ -332,7 +383,7 @@ export default function PlannerForm({
     } else {
       setMustSeePoiIds([
         ...mustSeePoiIds,
-        poiId
+        poiId,
       ]);
     }
   };
@@ -366,7 +417,7 @@ export default function PlannerForm({
     } else {
       setAllowedModes([
         ...currentModes,
-        mode
+        mode,
       ]);
     }
   };
@@ -431,10 +482,11 @@ export default function PlannerForm({
 
         if (
           data.parsed_intent?.budget_cap !==
-          undefined &&
+            undefined &&
           data.parsed_intent?.budget_cap !==
-          null &&
-          data.parsed_intent?.budget_cap !== ''
+            null &&
+          data.parsed_intent?.budget_cap !==
+            ''
         ) {
           setBudgetCap(
             String(
@@ -446,10 +498,11 @@ export default function PlannerForm({
 
         if (
           data.parsed_intent?.carbon_cap_kg !==
-          undefined &&
+            undefined &&
           data.parsed_intent?.carbon_cap_kg !==
-          null &&
-          data.parsed_intent?.carbon_cap_kg !== ''
+            null &&
+          data.parsed_intent?.carbon_cap_kg !==
+            ''
         ) {
           setCarbonCap(
             String(
@@ -492,6 +545,18 @@ export default function PlannerForm({
           setMustSeePoiIds(
             data.parsed_intent
               .must_see_poi_ids
+          );
+        }
+
+        // ------------------------------------------------------
+        // DATE
+        // ------------------------------------------------------
+
+        if (
+          data.parsed_intent?.day_date
+        ) {
+          setDayDate(
+            data.parsed_intent.day_date
           );
         }
 
@@ -545,7 +610,7 @@ export default function PlannerForm({
             'walk',
             'cab',
             'bus',
-            'metro'
+            'metro',
           ];
 
           const normalizedModes =
@@ -580,7 +645,7 @@ export default function PlannerForm({
 
         if (
           typeof setWeights ===
-          'function' &&
+            'function' &&
           data.parsed_intent
             ?.weights
         ) {
@@ -615,7 +680,7 @@ export default function PlannerForm({
             setWeights({
               cost,
               time,
-              carbon
+              carbon,
             });
           }
         }
@@ -633,7 +698,7 @@ export default function PlannerForm({
         } else {
           setAiSuccessMessage(
             data.ai_status?.message ||
-            'AI planned your day based on your preferences!'
+              'AI planned your day based on your preferences!'
           );
         }
 
@@ -649,7 +714,7 @@ export default function PlannerForm({
       } else {
         throw new Error(
           data?.error ||
-          'Failed to generate itinerary plan.'
+            'Failed to generate itinerary plan.'
         );
       }
     } catch (err) {
@@ -660,7 +725,7 @@ export default function PlannerForm({
 
       setAiError(
         err.message ||
-        'Could not complete AI planning request.'
+          'Could not complete AI planning request.'
       );
     } finally {
       setAiLoading(false);
@@ -668,24 +733,23 @@ export default function PlannerForm({
   };
 
   // ============================================================
-  // TRANSPORT ICON
+  // TRANSPORT OPTIONS
   // ============================================================
 
   // ReRoute currently supports only transport modes
   // that are backed by the APS-09 travel matrix.
-  // ReRoute currently supports only transport modes
-  // backed by the APS-09 travel matrix.
+
   const transportOptions = [
     {
       id: 'walk',
       label: t.walk,
-      icon: Footprints
+      icon: Footprints,
     },
     {
       id: 'cab',
       label: t.cab,
-      icon: Car
-    }
+      icon: Car,
+    },
   ];
 
   // ============================================================
@@ -700,6 +764,7 @@ export default function PlannerForm({
       ====================================================== */}
 
       <div className="form-header">
+
         <h2 className="form-main-title">
           {t.planYourDay}
         </h2>
@@ -707,6 +772,7 @@ export default function PlannerForm({
         <p className="form-subtitle">
           {t.planSubtitle}
         </p>
+
       </div>
 
       {/* ======================================================
@@ -718,6 +784,7 @@ export default function PlannerForm({
         <div className="ai-panel-header">
 
           <div className="ai-panel-title">
+
             <Sparkles
               size={16}
               className="ai-sparkle-icon"
@@ -726,6 +793,7 @@ export default function PlannerForm({
             <span>
               {t.aiHeader}
             </span>
+
           </div>
 
           {aiPrompt && (
@@ -809,6 +877,7 @@ export default function PlannerForm({
               }
               className="btn-ai-plan"
             >
+
               {aiLoading ? (
                 <>
                   <Loader2
@@ -831,6 +900,7 @@ export default function PlannerForm({
                   </span>
                 </>
               )}
+
             </button>
 
           </div>
@@ -847,11 +917,13 @@ export default function PlannerForm({
 
         {aiSuccessMessage && (
           <div className="ai-status-banner success">
+
             <Check size={14} />
 
             <span>
               {aiSuccessMessage}
             </span>
+
           </div>
         )}
 
@@ -868,11 +940,13 @@ export default function PlannerForm({
         <div className="form-field full-width">
 
           <label className="field-label">
+
             <MapPin size={14} />
 
             <span>
               {t.destination}
             </span>
+
           </label>
 
           <div className="select-wrapper">
@@ -888,6 +962,7 @@ export default function PlannerForm({
               }
               className="form-select"
             >
+
               {cities.map(
                 (city) => (
                   <option
@@ -899,15 +974,20 @@ export default function PlannerForm({
                     }
                   >
                     {city.name}
+
                     {city.state
                       ? ` (${city.state})`
                       : ''}
+
                     {' • '}
+
                     {city.region ||
                       'India'}
+
                   </option>
                 )
               )}
+
             </select>
 
           </div>
@@ -919,18 +999,22 @@ export default function PlannerForm({
         <div className="form-field">
 
           <label className="field-label">
+
             <Calendar size={14} />
 
             <span>
               {t.date}
             </span>
+
           </label>
 
           <input
             type="date"
-            value={
-              dayDate ||
-              '2026-09-25'
+            value={dayDate}
+            min={
+              new Date()
+                .toISOString()
+                .split('T')[0]
             }
             onChange={(event) =>
               setDayDate(
@@ -947,11 +1031,13 @@ export default function PlannerForm({
         <div className="form-field">
 
           <label className="field-label">
+
             <Clock size={14} />
 
             <span>
               {t.startTime}
             </span>
+
           </label>
 
           <input
@@ -972,11 +1058,13 @@ export default function PlannerForm({
         <div className="form-field">
 
           <label className="field-label">
+
             <Clock size={14} />
 
             <span>
               {t.endTime}
             </span>
+
           </label>
 
           <input
@@ -997,11 +1085,13 @@ export default function PlannerForm({
         <div className="form-field">
 
           <label className="field-label">
+
             <DollarSign size={14} />
 
             <span>
               {t.budget}
             </span>
+
           </label>
 
           <input
@@ -1009,24 +1099,28 @@ export default function PlannerForm({
             inputMode="numeric"
             value={budgetCap}
             onChange={(event) => {
-              const value = event.target.value;
 
-              // Allow empty input
+              const value =
+                event.target.value;
+
               if (value === '') {
                 setBudgetCap('');
                 return;
               }
 
-              // Allow digits only
               if (!/^\d+$/.test(value)) {
                 return;
               }
 
-              const numericValue = Number(value);
+              const numericValue =
+                Number(value);
 
-              // Maximum budget: ₹1,00,000
-              if (numericValue > 100000) {
-                setBudgetCap('100000');
+              if (
+                numericValue > 100000
+              ) {
+                setBudgetCap(
+                  '100000'
+                );
                 return;
               }
 
@@ -1037,7 +1131,7 @@ export default function PlannerForm({
           />
 
           <span className="field-hint">
-            Maximum: ₹1,00,000
+            {t.maximumBudget}
           </span>
 
         </div>
@@ -1047,11 +1141,13 @@ export default function PlannerForm({
         <div className="form-field">
 
           <label className="field-label">
+
             <Leaf size={14} />
 
             <span>
               {t.carbon}
             </span>
+
           </label>
 
           <input
@@ -1059,30 +1155,37 @@ export default function PlannerForm({
             inputMode="decimal"
             value={carbonCap}
             onChange={(event) => {
-              const value = event.target.value;
 
-              // Allow empty input
+              const value =
+                event.target.value;
+
               if (value === '') {
                 setCarbonCap('');
                 return;
               }
 
-              // Allow digits with an optional decimal part
-              // Examples: 10, 10.5, 0.5
-              if (!/^\d*\.?\d*$/.test(value)) {
+              // Allows:
+              // 10
+              // 10.5
+              // 0.5
+
+              if (
+                !/^\d+(?:\.\d+)?$/.test(
+                  value
+                )
+              ) {
                 return;
               }
 
-              // Don't allow a standalone "."
-              if (value === '.') {
-                return;
-              }
+              const numericValue =
+                Number(value);
 
-              const numericValue = Number(value);
-
-              // Maximum carbon cap: 1,000 kg CO₂
-              if (numericValue > 1000) {
-                setCarbonCap('1000');
+              if (
+                numericValue > 1000
+              ) {
+                setCarbonCap(
+                  '1000'
+                );
                 return;
               }
 
@@ -1093,7 +1196,7 @@ export default function PlannerForm({
           />
 
           <span className="field-hint">
-            Maximum: 1,000 kg CO₂
+            {t.maximumCarbon}
           </span>
 
         </div>
@@ -1111,6 +1214,7 @@ export default function PlannerForm({
           <div>
 
             <div className="route-config-title">
+
               <Navigation
                 size={16}
               />
@@ -1118,18 +1222,17 @@ export default function PlannerForm({
               <span>
                 {t.route}
               </span>
+
             </div>
 
             <p className="route-config-subtitle">
-              Define the hard start,
-              end and transport
-              constraints.
+              {t.routeSubtitle}
             </p>
 
           </div>
 
           <div className="route-config-badge">
-            HARD CONSTRAINTS
+            {t.hardConstraints}
           </div>
 
         </div>
@@ -1169,7 +1272,7 @@ export default function PlannerForm({
               >
 
                 <option value="">
-                  Select start location
+                  {t.selectStart}
                 </option>
 
                 {pois.map(
@@ -1228,7 +1331,7 @@ export default function PlannerForm({
               >
 
                 <option value="">
-                  Select end location
+                  {t.selectEnd}
                 </option>
 
                 {pois.map(
@@ -1275,9 +1378,12 @@ export default function PlannerForm({
             </label>
 
             <span className="transport-count">
+
               {(allowedModes || [])
                 .length}{' '}
-              selected
+
+              {t.selected}
+
             </span>
 
           </div>
@@ -1288,7 +1394,7 @@ export default function PlannerForm({
               ({
                 id,
                 label,
-                icon: Icon
+                icon: Icon,
               }) => {
 
                 const selected =
@@ -1298,13 +1404,15 @@ export default function PlannerForm({
                   ).includes(id);
 
                 return (
+
                   <button
                     key={id}
                     type="button"
-                    className={`transport-option ${selected
-                      ? 'selected'
-                      : ''
-                      }`}
+                    className={`transport-option ${
+                      selected
+                        ? 'selected'
+                        : ''
+                    }`}
                     onClick={() =>
                       toggleTransportMode(
                         id
@@ -1316,9 +1424,11 @@ export default function PlannerForm({
                   >
 
                     <span className="transport-icon">
+
                       <Icon
                         size={17}
                       />
+
                     </span>
 
                     <span>
@@ -1333,6 +1443,7 @@ export default function PlannerForm({
                     )}
 
                   </button>
+
                 );
               }
             )}
@@ -1358,10 +1469,13 @@ export default function PlannerForm({
             </span>
 
             <span className="selected-tag">
+
               {
                 mustSeePoiIds.length
               }{' '}
+
               {t.selectedCount}
+
             </span>
 
           </label>
@@ -1410,7 +1524,7 @@ export default function PlannerForm({
                     }
                   >
                     {category ===
-                      'all'
+                    'all'
                       ? t.allCats
                       : category.toUpperCase()}
                   </option>
@@ -1427,54 +1541,63 @@ export default function PlannerForm({
 
         {mustSeePoiIds.length >
           0 && (
-            <div className="selected-chips-row">
 
-              {mustSeePoiIds.map(
-                (id) => {
+          <div className="selected-chips-row">
 
-                  const poi =
-                    pois.find(
-                      (item) =>
-                        item.poi_id ===
-                        id
-                    );
+            {mustSeePoiIds.map(
+              (id) => {
 
-                  return (
-                    <div
-                      key={id}
-                      className="selected-poi-chip"
-                    >
+                const poi =
+                  pois.find(
+                    (item) =>
+                      item.poi_id ===
+                      id
+                  );
 
-                      <span>
-                        {poi
-                          ? poi.name
-                          : id}
-                      </span>
+                return (
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          toggleMustSee(
-                            id
-                          )
-                        }
-                        aria-label={`Remove ${poi
+                  <div
+                    key={id}
+                    className="selected-poi-chip"
+                  >
+
+                    <span>
+
+                      {poi
+                        ? poi.name
+                        : id}
+
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        toggleMustSee(
+                          id
+                        )
+                      }
+                      aria-label={`Remove ${
+                        poi
                           ? poi.name
                           : id
-                          }`}
-                      >
-                        <X
-                          size={13}
-                        />
-                      </button>
+                      }`}
+                    >
 
-                    </div>
-                  );
-                }
-              )}
+                      <X
+                        size={13}
+                      />
 
-            </div>
-          )}
+                    </button>
+
+                  </div>
+
+                );
+              }
+            )}
+
+          </div>
+
+        )}
 
         {/* POI cards */}
 
@@ -1497,15 +1620,22 @@ export default function PlannerForm({
                 endPoiId ===
                 poi.poi_id;
 
+              const entryCost =
+                Number(
+                  poi.entry_cost || 0
+                );
+
               return (
+
                 <div
                   key={
                     poi.poi_id
                   }
-                  className={`poi-select-card ${isSelected
-                    ? 'selected'
-                    : ''
-                    }`}
+                  className={`poi-select-card ${
+                    isSelected
+                      ? 'selected'
+                      : ''
+                  }`}
                   onClick={() =>
                     toggleMustSee(
                       poi.poi_id
@@ -1516,16 +1646,22 @@ export default function PlannerForm({
                   onKeyDown={(
                     event
                   ) => {
+
                     if (
                       event.key ===
-                      'Enter' ||
+                        'Enter' ||
                       event.key ===
-                      ' '
+                        ' '
                     ) {
+
+                      event.preventDefault();
+
                       toggleMustSee(
                         poi.poi_id
                       );
+
                     }
+
                   }}
                 >
 
@@ -1536,60 +1672,71 @@ export default function PlannerForm({
                     </span>
 
                     <div
-                      className={`checkbox-indicator ${isSelected
-                        ? 'checked'
-                        : ''
-                        }`}
+                      className={`checkbox-indicator ${
+                        isSelected
+                          ? 'checked'
+                          : ''
+                      }`}
                     >
+
                       {isSelected && (
                         <Check
                           size={12}
                         />
                       )}
+
                     </div>
 
                   </div>
+
+                  {/* POI metadata */}
 
                   <div className="poi-select-meta">
 
                     <span>
                       {
                         poi.typical_duration_minutes
-                      }m
+                      } {t.minutes}
                     </span>
 
-                    <span>•</span>
+                    <span
+                      className="poi-meta-separator"
+                      aria-hidden="true"
+                    >
+                      •
+                    </span>
 
                     <span>
                       ₹
-                      {
-                        poi.entry_cost
-                      }
+                      {entryCost.toLocaleString(
+                        'en-IN'
+                      )}
                     </span>
 
-                    <span>•</span>
+                    <span
+                      className="poi-meta-separator"
+                      aria-hidden="true"
+                    >
+                      •
+                    </span>
 
                     <span>
-                      {
-                        poi.carbon_kg
-                      }{' '}
-                      kg
+                      {poi.carbon_kg} kg CO₂
                     </span>
 
                     {poi.opens_at && (
                       <>
-                        <span>
+                        <span
+                          className="poi-meta-separator"
+                          aria-hidden="true"
+                        >
                           •
                         </span>
 
                         <span className="poi-hours">
-                          {
-                            poi.opens_at
-                          }
-                          –
-                          {
-                            poi.closes_at
-                          }
+                          {poi.opens_at}
+                          {'–'}
+                          {poi.closes_at}
                         </span>
                       </>
                     )}
@@ -1600,31 +1747,41 @@ export default function PlannerForm({
 
                   {(isStart ||
                     isEnd) && (
-                      <div className="poi-route-tags">
 
-                        {isStart && (
-                          <span className="poi-route-tag start">
-                            <Navigation
-                              size={10}
-                            />
-                            START
-                          </span>
-                        )}
+                    <div className="poi-route-tags">
 
-                        {isEnd && (
-                          <span className="poi-route-tag end">
-                            <Flag
-                              size={10}
-                            />
-                            END
-                          </span>
-                        )}
+                      {isStart && (
+                        <span className="poi-route-tag start">
 
-                      </div>
-                    )}
+                          <Navigation
+                            size={10}
+                          />
+
+                          {t.start}
+
+                        </span>
+                      )}
+
+                      {isEnd && (
+                        <span className="poi-route-tag end">
+
+                          <Flag
+                            size={10}
+                          />
+
+                          {t.end}
+
+                        </span>
+                      )}
+
+                    </div>
+
+                  )}
 
                 </div>
+
               );
+
             })}
 
         </div>
@@ -1651,6 +1808,7 @@ export default function PlannerForm({
         >
 
           {isLoading ? (
+
             <>
               <Loader2
                 size={18}
@@ -1661,7 +1819,9 @@ export default function PlannerForm({
                 {t.optimizingBtn}
               </span>
             </>
+
           ) : (
+
             <>
               <span>
                 {t.optimizeBtn}
@@ -1671,6 +1831,7 @@ export default function PlannerForm({
                 size={18}
               />
             </>
+
           )}
 
         </button>
@@ -1680,5 +1841,3 @@ export default function PlannerForm({
     </div>
   );
 }
-
-

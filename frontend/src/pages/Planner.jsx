@@ -35,6 +35,8 @@ export default function Planner() {
 
   const resultsRef = useRef(null);
   const debounceTimerRef = useRef(null);
+  const optimizationAbortRef = useRef(null);
+  const optimizationRequestIdRef = useRef(0);
 
   // ============================================================
   // LANGUAGE
@@ -60,7 +62,9 @@ export default function Planner() {
   // PLANNER CONSTRAINTS
   // ============================================================
 
-  const [dayDate, setDayDate] = useState("2026-09-25");
+  const [dayDate, setDayDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
 
   const [dayStart, setDayStart] = useState("09:00");
 
@@ -102,6 +106,7 @@ export default function Planner() {
   const [previousSummary, setPreviousSummary] = useState(null);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isReoptimizing, setIsReoptimizing] = useState(false);
 
   const [loadingStepText, setLoadingStepText] = useState(
     "Optimizing your route..."
@@ -140,17 +145,66 @@ export default function Planner() {
         "Feasible Itinerary Verified ✓",
 
       infeasibleBadge:
-        "Hard Constraint Infeasibility Detected ⚠",
+        "Hard Constraint Infeasibility Detected",
 
-      resetBtn: "Reset Controls"
+      resetBtn: "Reset Controls",
+
+      exploreDestination: "EXPLORE DESTINATION",
+
+      choosePlaceOnMap:
+        "Choose a place on the map",
+
+      mapInstruction:
+        "Click a real POI to inspect it, then use it as your start, end, or must-see location.",
+
+      selected: "SELECTED",
+
+      selectedPlace: "SELECTED PLACE",
+
+      setAsStart: "Set as Start",
+
+      setAsEnd: "Set as End",
+
+      addMustSee: "★ Add Must-see",
+
+      mustSeeAdded: "✓ Must-see",
+
+      optimizedPlacesMap:
+        "OPTIMIZED PLACES MAP",
+
+      optimizedPlacesDescription:
+        "Only the places included in the feasible itinerary are shown on the map. No route lines or turn-by-turn directions.",
+
+      reoptimizing:
+        "Re-optimizing your route...",
+
+      evaluatingTravel:
+        "Evaluating travel times, opening hours, cost and carbon footprint deterministically...",
+
+      smartGroundedExplanation:
+        "Smart Grounded Explanation",
+
+      aiConciergeInsight:
+        "AI Concierge Insight",
+
+      constraintVerification:
+        "CONSTRAINT VERIFICATION",
+
+      readyToCraft:
+        "Ready to craft your day",
+
+      readyToCraftDescription:
+        "Select your attractions and priorities on the left, or type a request in the AI box.",
+
+      min: "min"
     },
 
     hi: {
       tag:
-        "बहु-उद्देश्यीय यात्रा कार्यक्रम अनुकूलक",
+        "बहु-उद्देश्यीय यात्रा योजना अनुकूलक",
 
       title:
-        "वास्तविकता पर आधारित सर्वोत्तम यात्रा मार्ग",
+        "वास्तविक डेटा पर आधारित सर्वोत्तम यात्रा मार्ग",
 
       subtitle:
         "लागत, समय और कार्बन का सटीक गणितीय संतुलन, वास्तविक डेटा और समय सीमाओं के साथ।",
@@ -162,14 +216,71 @@ export default function Planner() {
         "व्यावहारिक योजना सत्यापित ✓",
 
       infeasibleBadge:
-        "कठोर प्रतिबंध उल्लंघन पाया गया ⚠",
+        "कठोर प्रतिबंध उल्लंघन पाया गया",
 
       resetBtn:
-        "रीसेट करें"
+        "नियंत्रण रीसेट करें",
+
+      exploreDestination:
+        "गंतव्य देखें",
+
+      choosePlaceOnMap:
+        "मानचित्र पर कोई स्थान चुनें",
+
+      mapInstruction:
+        "वास्तविक आकर्षण को देखने के लिए उस पर क्लिक करें और उसे प्रारंभ, अंत या अनिवार्य स्थान के रूप में चुनें।",
+
+      selected:
+        "चयनित",
+
+      selectedPlace:
+        "चयनित स्थान",
+
+      setAsStart:
+        "प्रारंभ के रूप में चुनें",
+
+      setAsEnd:
+        "अंत के रूप में चुनें",
+
+      addMustSee:
+        "★ अनिवार्य आकर्षण जोड़ें",
+
+      mustSeeAdded:
+        "✓ अनिवार्य आकर्षण",
+
+      optimizedPlacesMap:
+        "अनुकूलित स्थान मानचित्र",
+
+      optimizedPlacesDescription:
+        "केवल व्यवहार्य यात्रा योजना में शामिल स्थान मानचित्र पर दिखाए गए हैं। कोई मार्ग रेखा या टर्न-बाय-टर्न दिशा नहीं है।",
+
+      reoptimizing:
+        "आपके मार्ग का पुनः अनुकूलन हो रहा है...",
+
+      evaluatingTravel:
+        "यात्रा समय, खुलने के घंटे, लागत और कार्बन उत्सर्जन का मूल्यांकन किया जा रहा है...",
+
+      smartGroundedExplanation:
+        "स्मार्ट ग्राउंडेड विवरण",
+
+      aiConciergeInsight:
+        "AI सहायक की जानकारी",
+
+      constraintVerification:
+        "प्रतिबंध सत्यापन",
+
+      readyToCraft:
+        "अपना दिन तैयार करें",
+
+      readyToCraftDescription:
+        "बाईं ओर अपने आकर्षण और प्राथमिकताएँ चुनें, या AI बॉक्स में अपनी आवश्यकता लिखें।",
+
+      min:
+        "मिनट"
     }
   };
 
-  const t = translations[language];
+  const t = translations[language] || translations.en;
 
   // ============================================================
   // LOAD CITIES
@@ -206,7 +317,7 @@ export default function Planner() {
               (city) =>
                 city.city_id === cityQuery ||
                 city.name?.toLowerCase() ===
-                  cityQuery.toLowerCase()
+                cityQuery.toLowerCase()
             );
           }
 
@@ -355,13 +466,13 @@ export default function Planner() {
   const optimizedPlaces =
     result?.feasible
       ? (result.stops || [])
-          .map((stop) =>
-            pois.find(
-              (poi) =>
-                poi.poi_id === stop.poi_id
-            )
+        .map((stop) =>
+          pois.find(
+            (poi) =>
+              poi.poi_id === stop.poi_id
           )
-          .filter(Boolean)
+        )
+        .filter(Boolean)
       : [];
 
   // ============================================================
@@ -370,9 +481,9 @@ export default function Planner() {
 
   const selectedPoi = selectedMapPoi
     ? pois.find(
-        (poi) =>
-          poi.poi_id === selectedMapPoi
-      )
+      (poi) =>
+        poi.poi_id === selectedMapPoi
+    )
     : null;
 
   // ============================================================
@@ -437,6 +548,18 @@ export default function Planner() {
   const runOptimization = async (
     overrideParams = {}
   ) => {
+    const isReoptimization =
+      overrideParams.isReoptimization === true;
+
+    const today = new Date();
+    const todayDate =
+      `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+    if (dayDate < todayDate) {
+      setError("Please select today or a future date to plan your day.");
+      return;
+    }
+
     if (!selectedCityId) return;
 
     const effectiveCityId =
@@ -444,44 +567,38 @@ export default function Planner() {
       selectedCityId;
 
     const effectiveMustSee =
-      overrideParams.must_see_poi_ids ??
+      overrideParams.must_see_poi_ids ||
       mustSeePoiIds;
 
     const effectiveStartPoi =
       overrideParams.start_poi_id !==
-      undefined
+        undefined
         ? overrideParams.start_poi_id
         : startPoiId || null;
 
     const effectiveEndPoi =
       overrideParams.end_poi_id !==
-      undefined
+        undefined
         ? overrideParams.end_poi_id
         : endPoiId || null;
 
     const effectiveModes =
-      overrideParams.allowed_modes ??
+      overrideParams.allowed_modes ||
       allowedModes;
 
     const effectiveCandidates =
-      overrideParams.candidate_poi_ids ??
-      Array.from(
-        new Set([
-          effectiveStartPoi,
-          effectiveEndPoi,
-          ...effectiveMustSee
-        ].filter(Boolean))
-      );
+      overrideParams.candidate_poi_ids ||
+      null;
 
     const effectiveBudget =
       overrideParams.budget_cap !==
-      undefined
+        undefined
         ? overrideParams.budget_cap
         : budgetCap;
 
     const effectiveCarbon =
       overrideParams.carbon_cap_kg !==
-      undefined
+        undefined
         ? overrideParams.carbon_cap_kg
         : carbonCap
           ? Number(carbonCap)
@@ -493,6 +610,8 @@ export default function Planner() {
 
     const payload = {
       city_id: effectiveCityId,
+
+      day_date: dayDate,
 
       day_start:
         overrideParams.day_start ||
@@ -535,7 +654,14 @@ export default function Planner() {
         overrideParams.opening_hours_overrides;
     }
 
-    setIsLoading(true);
+    const requestId = ++optimizationRequestIdRef.current;
+
+    if (isReoptimization) {
+      setIsReoptimizing(true);
+    } else {
+      setIsLoading(true);
+    }
+
     setError("");
 
     setLoadingStepText(
@@ -555,10 +681,27 @@ export default function Planner() {
     }, 650);
 
     try {
+
+      // Cancel the previous optimization request.
+      if (optimizationAbortRef.current) {
+        optimizationAbortRef.current.abort();
+      }
+
+      const controller = new AbortController();
+      optimizationAbortRef.current = controller;
+
       const data =
         await optimizeItinerary(
-          payload
+          payload,
+          {
+            signal: controller.signal
+          }
         );
+
+      // Ignore this response if a newer optimization request has started.
+      if (requestId !== optimizationRequestIdRef.current) {
+        return;
+      }
 
       // Preserve previous feasible result
       if (
@@ -583,7 +726,7 @@ export default function Planner() {
       // Scroll after result
       if (
         overrideParams.shouldScroll !==
-          false &&
+        false &&
         resultsRef.current
       ) {
         setTimeout(() => {
@@ -596,6 +739,16 @@ export default function Planner() {
         }, 100);
       }
     } catch (err) {
+
+      if (err?.name === "AbortError") {
+        return;
+      }
+
+      // Ignore errors from an older optimization request.
+      if (requestId !== optimizationRequestIdRef.current) {
+        return;
+      }
+
       console.error(
         "Optimization error:",
         err
@@ -603,15 +756,37 @@ export default function Planner() {
 
       setError(
         err?.message ||
-          "Optimization request failed. Please check your inputs."
+        "Optimization request failed. Please check your inputs."
       );
     } finally {
       clearTimeout(timer1);
       clearTimeout(timer2);
 
-      setIsLoading(false);
+      if (requestId === optimizationRequestIdRef.current) {
+        if (isReoptimization) {
+          setIsReoptimizing(false);
+        } else {
+          setIsLoading(false);
+        }
+      }
     }
   };
+
+  // ============================================================
+  // OPTIMIZATION REQUEST CLEANUP
+  // ============================================================
+
+  useEffect(() => {
+    return () => {
+      if (optimizationAbortRef.current) {
+        optimizationAbortRef.current.abort();
+      }
+
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   // ============================================================
   // INITIAL OPTIMIZATION
@@ -649,10 +824,30 @@ export default function Planner() {
   ) => {
     if (!aiData) return;
 
+
     if (aiData.ai_status) {
       setAiStatus(
         aiData.ai_status
       );
+    }
+
+    if (aiData.parsed_intent?.weights) {
+      const aiWeights = aiData.parsed_intent.weights;
+      const cost = Number(aiWeights.cost);
+      const time = Number(aiWeights.time);
+      const carbon = Number(aiWeights.carbon);
+
+      if (
+        Number.isFinite(cost) &&
+        Number.isFinite(time) &&
+        Number.isFinite(carbon) &&
+        cost >= 0 &&
+        time >= 0 &&
+        carbon >= 0 &&
+        cost + time + carbon > 0
+      ) {
+        setWeights({ cost, time, carbon });
+      }
     }
 
     if (aiData.narrative) {
@@ -709,7 +904,8 @@ export default function Planner() {
       setTimeout(() => {
         runOptimization({
           weights: newWeights,
-          shouldScroll: false
+          shouldScroll: false,
+          isReoptimization: true
         });
       }, 400);
   };
@@ -743,7 +939,7 @@ export default function Planner() {
       chosenConstraintType === "TIME" ||
       (!chosenConstraintType &&
         relaxedPlan.constraint_type ===
-          "TIME")
+        "TIME")
     ) {
       const relaxedEnd =
         relaxedPlan.relaxed_value;
@@ -760,10 +956,10 @@ export default function Planner() {
 
     else if (
       chosenConstraintType ===
-        "TIME_START" ||
+      "TIME_START" ||
       (!chosenConstraintType &&
         relaxedPlan.constraint_type ===
-          "TIME_START")
+        "TIME_START")
     ) {
       const relaxedStart =
         relaxedPlan.relaxed_value;
@@ -780,14 +976,14 @@ export default function Planner() {
 
     else if (
       chosenConstraintType ===
-        "BUDGET" ||
+      "BUDGET" ||
       (!chosenConstraintType &&
         relaxedPlan.constraint_type ===
-          "BUDGET")
+        "BUDGET")
     ) {
       const value = String(
         relaxedPlan.relaxed_value ||
-          ""
+        ""
       ).replace(
         /[^0-9.]/g,
         ""
@@ -805,14 +1001,14 @@ export default function Planner() {
 
     else if (
       chosenConstraintType ===
-        "CARBON" ||
+      "CARBON" ||
       (!chosenConstraintType &&
         relaxedPlan.constraint_type ===
-          "CARBON")
+        "CARBON")
     ) {
       const value = String(
         relaxedPlan.relaxed_value ||
-          ""
+        ""
       ).replace(
         /[^0-9.]/g,
         ""
@@ -830,10 +1026,10 @@ export default function Planner() {
 
     else if (
       chosenConstraintType ===
-        "OPENING_HOURS" ||
+      "OPENING_HOURS" ||
       (!chosenConstraintType &&
         relaxedPlan.constraint_type ===
-          "OPENING_HOURS")
+        "OPENING_HOURS")
     ) {
       const poiId =
         relaxedPlan.poi_id ||
@@ -848,12 +1044,12 @@ export default function Planner() {
         relaxedClosing
       ) {
         overrides.opening_hours_overrides =
-          {
-            [poiId]: {
-              closes_at:
-                relaxedClosing
-            }
-          };
+        {
+          [poiId]: {
+            closes_at:
+              relaxedClosing
+          }
+        };
       } else {
         setShowingRelaxedPlan(true);
         return;
@@ -959,7 +1155,7 @@ export default function Planner() {
               setLanguage("hi")
             }
           >
-            हिंदी
+            हिन्दी
           </button>
 
         </div>
@@ -1175,9 +1371,8 @@ export default function Planner() {
                 <div className="selected-poi-info">
 
                   <span className="selected-poi-label">
-                    SELECTED PLACE
+                    {t.selectedPlace}
                   </span>
-
                   <h3>
                     📍 {selectedPoi.name}
                   </h3>
@@ -1188,17 +1383,17 @@ export default function Planner() {
                       "Attraction"
                     }
 
-                    {" • "}
+                    {"\u0020\u2022\u0020"}
 
                     {
-                      selectedPoi.typical_duration_minutes ??
+                      selectedPoi.typical_duration_minutes ||
                       0
                     }
 
-                    {" min • ₹"}
+                    {" "}{t.min}
 
                     {
-                      selectedPoi.entry_cost ??
+                      selectedPoi.entry_cost ||
                       "0.00"
                     }
                   </p>
@@ -1212,7 +1407,7 @@ export default function Planner() {
                         "--"
                       }
 
-                      {" – "}
+                      {" \u2013 "}
 
                       {
                         selectedPoi.closes_at ||
@@ -1223,7 +1418,7 @@ export default function Planner() {
                     <span>
                       🌱{" "}
                       {
-                        selectedPoi.carbon_kg ??
+                        selectedPoi.carbon_kg ||
                         0
                       }
 
@@ -1242,7 +1437,7 @@ export default function Planner() {
                       handleSetSelectedAsStart
                     }
                   >
-                    Set as Start
+                    {t.setAsStart}
                   </button>
 
                   <button
@@ -1251,7 +1446,7 @@ export default function Planner() {
                       handleSetSelectedAsEnd
                     }
                   >
-                    Set as End
+                    {t.setAsEnd}
                   </button>
 
                   <button
@@ -1267,7 +1462,7 @@ export default function Planner() {
                       mustSeePoiIds.includes(
                         selectedPoi.poi_id
                       )
-                        ? "✓ Must-see"
+                        ? "? Must-see"
                         : "★ Add Must-see"
                     }
                   </button>
@@ -1288,7 +1483,7 @@ export default function Planner() {
             onChange={
               handleWeightsChange
             }
-            disabled={isLoading}
+            disabled={isLoading && !isReoptimizing}
             language={language}
           />
 
@@ -1335,7 +1530,7 @@ export default function Planner() {
                     "Destination"
                   }
 
-                  {" • "}
+                  {"\u0020\u2022\u0020"}
 
                   {dayDate}
 
@@ -1347,10 +1542,9 @@ export default function Planner() {
             {result && (
               <span
                 className={
-                  `status-pill ${
-                    result.feasible
-                      ? "feasible"
-                      : "infeasible"
+                  `status-pill ${result.feasible
+                    ? "feasible"
+                    : "infeasible"
                   }`
                 }
               >
@@ -1387,10 +1581,29 @@ export default function Planner() {
           </div>
 
           {/* ==================================================
+              REOPTIMIZATION STATUS
+          ================================================== */}
+
+          {isReoptimizing && result && (
+            <div className="reoptimization-status" role="status" aria-live="polite">
+
+              <RefreshCw
+                size={15}
+                className="spin"
+              />
+
+              <span>
+                {t.reoptimizing}
+              </span>
+
+            </div>
+          )}
+
+          {/* ==================================================
               LOADING
           ================================================== */}
 
-          {isLoading && (
+          {isLoading && !isReoptimizing && (
             <div className="optimizing-overlay">
 
               <RefreshCw
@@ -1403,10 +1616,7 @@ export default function Planner() {
               </h4>
 
               <p>
-                Evaluating travel times,
-                opening hours, cost and
-                carbon footprint
-                deterministically...
+                {t.evaluatingTravel}
               </p>
 
             </div>
@@ -1436,8 +1646,8 @@ export default function Planner() {
 
                         {
                           aiStatus?.fallback
-                            ? "Smart Grounded Explanation"
-                            : "AI Concierge Insight"
+                            ? t.smartGroundedExplanation
+                            : t.aiConciergeInsight
                         }
 
                       </span>
@@ -1487,39 +1697,39 @@ export default function Planner() {
                 {optimizedPlaces.length >
                   0 && (
 
-                  <div className="timeline-section-card planner-result-map-card">
+                    <div className="timeline-section-card planner-result-map-card">
 
-                    <div className="card-header">
+                      <div className="card-header">
 
-                      <h4 className="section-title">
-                        OPTIMIZED PLACES MAP
-                      </h4>
+                        <h4 className="section-title">
+                          {t.optimizedPlacesMap}
+                        </h4>
 
-                      <p className="section-subtitle">
-                        Only the places included in the feasible itinerary are shown on the map. No route lines or turn-by-turn directions.
-                      </p>
+                        <p className="section-subtitle">
+                          {t.optimizedPlacesDescription}
+                        </p>
+
+                      </div>
+
+                      <MapView
+                        pois={optimizedPlaces}
+                        selectedPoiId={
+                          selectedMapPoi
+                        }
+                        onPoiSelect={
+                          handleMapPoiSelect
+                        }
+                        city={
+                          selectedCity
+                        }
+                        route={{
+                          stops: result.stops || [],
+                          transfers: result.transfers || []
+                        }}
+                      />
 
                     </div>
-
-                    <MapView
-                      pois={optimizedPlaces}
-                      selectedPoiId={
-                        selectedMapPoi
-                      }
-                      onPoiSelect={
-                        handleMapPoiSelect
-                      }
-                      city={
-                        selectedCity
-                      }
-                      route={{
-                        stops: result.stops || [],
-                        transfers: result.transfers || []
-                      }}
-                    />
-
-                  </div>
-                )}
+                  )}
 
                 {/* ==================================================
                     TIMELINE
@@ -1548,14 +1758,14 @@ export default function Planner() {
                           ?.day_end
                       }
 
-                      {" • "}
+                      {"\u0020\u2022\u0020"}
 
                       {
                         result.stops
                           ?.length || 0
                       }
 
-                      {" Attractions • "}
+                      {" Attractions \u2022 "}
 
                       {
                         result.transfers
@@ -1659,15 +1869,11 @@ export default function Planner() {
                 />
 
                 <h3>
-                  Ready to craft
-                  your day
+                  {t.readyToCraft}
                 </h3>
 
                 <p>
-                  Select your attractions
-                  and priorities on the
-                  left, or type a request
-                  in the AI box.
+                  {t.readyToCraftDescription}
                 </p>
 
               </div>
@@ -1743,7 +1949,7 @@ export default function Planner() {
                           ?.day_start
                       }
 
-                      {" – "}
+                      {" \u2013 "}
 
                       {
                         result.summary
@@ -1783,17 +1989,17 @@ export default function Planner() {
                     />
 
                     <span>
-                      Budget limit: ₹
+                      Budget limit: {"\u20B9"}
                       {
                         result.summary
                           ?.cost
                       }
 
-                      {" / ₹"}
+                      {" / \u20B9"}
 
                       {
                         budgetCap ||
-                        "∞"
+                        "\u221E"
                       }
                     </span>
 
@@ -1817,7 +2023,7 @@ export default function Planner() {
 
                       {
                         carbonCap ||
-                        "∞"
+                        "\u221E"
                       }
 
                       {" kg"}
@@ -1855,5 +2061,3 @@ export default function Planner() {
     </div>
   );
 }
-
-

@@ -20,18 +20,24 @@ export async function getPois(cityId, category = '') {
   return res.json();
 }
 
-export async function optimizeItinerary(payload) {
+export async function optimizeItinerary(payload, options = {}) {
   const res = await fetch(`${BASE_URL}/optimize`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    signal: options.signal
   });
+
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error?.message || `Optimization failed: ${res.statusText}`);
+    throw new Error(
+      errData.error?.message ||
+      `Optimization failed: ${res.statusText}`
+    );
   }
+
   return res.json();
 }
 
@@ -51,7 +57,7 @@ export async function parseIntent(prompt) {
 }
 
 export async function planMyDay(prompt, cityId = null) {
-  const res = await fetch(`${BASE_URL}/explain/plan-my-day`, {
+  const res = await fetch(`${BASE_URL}/ai/plan`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -111,3 +117,4 @@ export async function submitContact(payload) {
     message: 'Your message has been sent successfully.'
   };
 }
+

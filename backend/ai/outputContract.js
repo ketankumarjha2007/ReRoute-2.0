@@ -24,6 +24,7 @@ const SUPPORTED_MODES = [
 
 const AI_ALLOWED_FIELDS = [
   'city_name',
+  'day_date',
   'budget_cap',
   'carbon_cap_kg',
   'day_start',
@@ -91,6 +92,27 @@ function isValidTime(value) {
  * Do NOT use parseFloat for money validation.
  * ------------------------------------------------------------
  */
+
+function isValidDate(value) {
+
+  if (
+    typeof value !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(value)
+  ) {
+    return false;
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
 
 function isValidMoney(value) {
 
@@ -264,6 +286,30 @@ function validateAiOutput(aiOutput) {
     errors.push(
       'city_name must be a string or null'
     );
+  }
+
+
+  /*
+   * ----------------------------------------------------------
+   * Planning Date
+   * ----------------------------------------------------------
+   */
+
+  if (
+    aiOutput.day_date !== null &&
+    aiOutput.day_date !== undefined
+  ) {
+
+    if (
+      !isValidDate(
+        aiOutput.day_date
+      )
+    ) {
+
+      errors.push(
+        'day_date must use YYYY-MM-DD format'
+      );
+    }
   }
 
 
@@ -522,3 +568,8 @@ module.exports = {
   isValidTime,
   SUPPORTED_MODES
 };
+
+
+
+
+

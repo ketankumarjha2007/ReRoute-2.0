@@ -246,11 +246,11 @@ async function testAiConnection() {
         'Connected';
 
 
-    /*
-     * --------------------------------------------------------
-     * OpenAI-compatible providers
-     * --------------------------------------------------------
-     */
+      /*
+       * --------------------------------------------------------
+       * OpenAI-compatible providers
+       * --------------------------------------------------------
+       */
 
     } else {
 
@@ -432,8 +432,9 @@ async function extractIntentWithLlm(
    * ----------------------------------------------------------
    */
 
+  const backendToday = new Date().toISOString().split('T')[0];
   const systemInstructions = `
-You are ReRoute's Travel Intent Extraction Engine.
+  You are ReRoute's Travel Intent Extraction Engine.
 
 Your ONLY job is to understand the user's travel preferences
 and convert them into structured JSON.
@@ -457,11 +458,13 @@ You MUST NOT calculate or invent:
 Those values are calculated by the ReRoute backend using the
 official APS-09 database and deterministic optimizer.
 
+Current backend date: ${backendToday}
+
 Available database cities:
 
 ${activeCityNames
-  .slice(0, 40)
-  .join(', ')}
+      .slice(0, 40)
+      .join(', ')}
 
 Return ONLY valid JSON.
 
@@ -473,6 +476,7 @@ Use EXACTLY this schema:
 
 {
   "city_name": string or null,
+  "day_date": "YYYY-MM-DD",
 
   "budget_cap": string or null,
 
@@ -535,15 +539,26 @@ Rules:
 
 16. Weights must be non-negative and sum to 1.0.
 
-17. day_start and day_end must use HH:MM
-    24-hour format.
+17. day_date must use YYYY-MM-DD format.
 
-18. Extract user preferences only.
+18. If the user says today, use the current backend date.
 
-19. Do not make factual claims about POI prices,
+19. If the user says tomorrow, use the next calendar date.
+
+20. If the user gives an explicit date, convert it to YYYY-MM-DD.
+
+21. If the user gives yesterday or a date before the current backend date, do not create a past-date plan.
+
+22. If the user does not specify a date, use the current backend date.
+
+23. day_start and day_end must use HH:MM 24-hour format.
+
+24. Extract user preferences only.
+
+25. Do not make factual claims about POI prices,
     carbon, travel times or opening hours.
 
-20. Do not generate final itinerary metrics.
+26. Do not generate final itinerary metrics.
 `;
 
 
@@ -641,11 +656,11 @@ Rules:
         '';
 
 
-    /*
-     * ========================================================
-     * OPENAI-COMPATIBLE PROVIDERS
-     * ========================================================
-     */
+      /*
+       * ========================================================
+       * OPENAI-COMPATIBLE PROVIDERS
+       * ========================================================
+       */
 
     } else {
 
@@ -1092,11 +1107,11 @@ this itinerary matches the traveler's stated preferences.
       );
 
 
-    /*
-     * --------------------------------------------------------
-     * OpenAI-compatible
-     * --------------------------------------------------------
-     */
+      /*
+       * --------------------------------------------------------
+       * OpenAI-compatible
+       * --------------------------------------------------------
+       */
 
     } else {
 
@@ -1224,16 +1239,16 @@ ${diagnosis.binding_constraint?.type || 'CONSTRAINTS'}
 
 Constraint Details:
 ${JSON.stringify(
-  diagnosis.binding_constraint
-)}
+      diagnosis.binding_constraint
+    )}
 
 Deterministic Diagnosis:
 ${diagnosis.explanation}
 
 Suggested Relaxation:
 ${JSON.stringify(
-  diagnosis.relaxation || null
-)}
+      diagnosis.relaxation || null
+    )}
 
 IMPORTANT:
 
@@ -1330,11 +1345,11 @@ In 2 clear sentences:
       );
 
 
-    /*
-     * --------------------------------------------------------
-     * OpenAI-compatible
-     * --------------------------------------------------------
-     */
+      /*
+       * --------------------------------------------------------
+       * OpenAI-compatible
+       * --------------------------------------------------------
+       */
 
     } else {
 
@@ -1438,3 +1453,12 @@ module.exports = {
 
   explainInfeasibilityWithLlm
 };
+
+
+
+
+
+
+
+
+
