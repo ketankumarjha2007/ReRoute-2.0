@@ -25,8 +25,12 @@ import {
   AlertCircle,
   RefreshCw,
   Compass,
-  ShieldCheck
+  ShieldCheck,
+  Download,
 } from "lucide-react";
+
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 import "../styles/Planner.css";
 
@@ -1105,6 +1109,760 @@ export default function Planner() {
   };
 
   // ============================================================
+  // REROUTE - PREMIUM PDF EXPORT (v2)
+  // Drop-in replacement for handleDownloadPlan.
+  // Needs in scope: jsPDF, result, selectedCity, allowedModes, dayDate,
+  // dayStart, dayEnd, budgetCap, carbonCap, weights, aiNarrative, mustSeePoiIds
+  // ============================================================
+
+  const handleDownloadPlan = () => {
+    if (!result?.feasible || !result?.stops?.length) return;
+
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const W = doc.internal.pageSize.getWidth();
+    const H = doc.internal.pageSize.getHeight();
+    const M = 15; // page margin
+    const CW = W - M * 2; // content width
+    const BOTTOM = H - 20; // lowest y content may reach
+
+    // ----------------------------------------------------------
+    // PALETTE
+    // ----------------------------------------------------------
+    const C = {
+      green: [22, 163, 74],
+      greenDark: [21, 128, 61],
+      greenSoft: [240, 253, 244],
+      greenBorder: [187, 247, 208],
+      mint: [134, 239, 172],
+      blue: [37, 99, 235],
+      blueSoft: [239, 246, 255],
+      amber: [217, 119, 6],
+      amberSoft: [255, 247, 237],
+      amberBorder: [253, 230, 138],
+      red: [220, 38, 38],
+      redSoft: [254, 242, 242],
+      redBorder: [254, 202, 202],
+      navy: [15, 23, 42],
+      navy2: [24, 36, 62],
+      slate800: [30, 41, 59],
+      slate700: [51, 65, 85],
+      slate600: [71, 85, 105],
+      slate500: [100, 116, 139],
+      slate400: [148, 163, 184],
+      slate300: [203, 213, 225],
+      slate200: [226, 232, 240],
+      slate100: [241, 245, 249],
+      slate50: [248, 250, 252],
+      white: [255, 255, 255],
+    };
+
+    const summary = result.summary || {};
+    const stops = result.stops;
+    const transfers = result.transfers || [];
+
+    // ----------------------------------------------------------
+    // DATA HELPERS
+    // ----------------------------------------------------------
+    // jsPDF's built-in Helvetica only supports Latin-1, so we scrub
+    // anything else (rupee sign, subscript 2, smart quotes...) to avoid garbled glyphs.
+    const clean = (v) =>
+      String(v)
+        .replace(/CO₂/g, "CO2")
+        .replace(/₂/g, "2")
+        .replace(/₹/g, "INR ")
+        .replace(/[–—]/g, "-")
+        .replace(/[‘’]/g, "'")
+        .replace(/[“”]/g, '"')
+        .replace(/…/g, "...")
+        .replace(/[^\x20-\x7E\u00A0-\u00FF]/g, "")
+        .replace(/ {2,}/g, " ")
+        .trim();
+
+    const safe = (v, fb = "-") =>
+      v === undefined || v === null || v === "" ? fb : clean(v);
+
+    const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
+    const toMin = (s) => {
+      if (typeof s !== "string") return null;
+      const m = s.match(/(\d{1,2}):(\d{2})/);
+      return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+    };
+    const fmtMin = (v) => {
+      const t = Math.round(Number(v) || 0);
+      const h = Math.floor(t / 60);
+      const m = t % 60;
+      if (h > 0 && m > 0) return `${h}h ${m}m`;
+      if (h > 0) return `${h}h`;
+      return `${m}m`;
+    };
+    const money = (v) => `INR ${Math.round(Number(v) || 0).toLocaleString("en-IN")}`;
+    const carbon = (v) => `${(Number(v) || 0).toFixed(1)} kg CO2`;
+    const km = (v) => `${(Number(v) || 0).toFixed(1)} km`;
+    const slugify = (v) =>
+      String(v).trim().replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+    const cityName = safe(selectedCity?.name || result.city_name || result.city, "Destination");
+    const dateText = safe(dayDate, "");
+    const transportText =
+      Array.isArray(allowedModes) && allowedModes.length
+        ? allowedModes.map((m) => String(m).toUpperCase()).join(" + ")
+        : "Not specified";
+
+    // Day window
+    let ds = toMin(dayStart);
+    let de = toMin(dayEnd);
+    if (ds === null) ds = (toMin(stops[0]?.arrival) ?? 540) - 30;
+    if (de === null) de = (toMin(stops[stops.length - 1]?.departure) ?? 1080) + 30;
+    if (de <= ds) de = ds + 540;
+    const windowMin = de - ds;
+
+    const used = {
+      cost: Number(summary.cost) || 0,
+      minutes: Number(summary.minutes) || 0,
+      carbon: Number(summary.carbon_kg) || 0,
+    };
+    const budgetLimit = Number(budgetCap) || 0;
+    const carbonLimit = Number(carbonCap) || 0;
+    const activityMin = Math.round(Number(summary.activity_minutes) || 0);
+    const travelMin = Math.round(Number(summary.travel_minutes) || 0);
+
+    // ----------------------------------------------------------
+    // INTEGRITY CHECKS (so the PDF never claims "verified" blindly)
+    // ----------------------------------------------------------
+    const transferIssue = (t) => {
+      const mode = String(t.mode || "").toLowerCase();
+      const d = Number(t.distance_km) || 0;
+      const mins = Number(t.minutes) || 0;
+      if (mode.includes("walk") && d > 0 && mins > 0) {
+        const speed = d / (mins / 60);
+        if (speed > 7) {
+          return `Walking ${km(d)} in ${Math.round(mins)} min implies ${speed.toFixed(0)} km/h. Verify mode or distance.`;
+        }
+        if (d > 3) return `${km(d)} on foot is a long walk. Consider a cab.`;
+      }
+      if (!mode.includes("walk") && d > 1 && Number(t.cost) === 0) {
+        return `${safe(t.mode, "Transit")} leg of ${km(d)} has zero fare. Fare may be missing.`;
+      }
+      return null;
+    };
+
+    const stopHoursBad = stops.map((s) => {
+      const o = toMin(s.opens_at);
+      const c = toMin(s.closes_at);
+      const a = toMin(s.arrival);
+      const d = toMin(s.departure);
+      if (c !== null && d !== null && d > c) return true;
+      if (o !== null && a !== null && a < o && !(Number(s.wait_minutes) > 0)) return true;
+      return false;
+    });
+
+    const issues = [];
+    transfers.forEach((t, i) => {
+      const msg = transferIssue(t);
+      if (msg) issues.push(`Transfer ${i + 1} to ${i + 2}: ${msg}`);
+    });
+    stops.forEach((s, i) => {
+      if (stopHoursBad[i]) issues.push(`Stop ${i + 1} (${safe(s.name)}): visit falls outside opening hours.`);
+    });
+
+    const requiredIds = Array.isArray(mustSeePoiIds) ? mustSeePoiIds : [];
+    const stopIds = stops.map((s) => s.poi_id ?? s.id ?? s.poiId).filter((x) => x !== undefined);
+    const missingMust = stopIds.length ? requiredIds.filter((id) => !stopIds.includes(id)) : [];
+
+    // ----------------------------------------------------------
+    // DRAW PRIMITIVES
+    // ----------------------------------------------------------
+    const txt = (s, x, y, o = {}) => {
+      const { size = 8, bold = false, color = C.slate700, align = "left", maxW } = o;
+      doc.setFont("helvetica", bold ? "bold" : "normal");
+      doc.setFontSize(size);
+      doc.setTextColor(...color);
+      let out = clean(s);
+      if (maxW) {
+        if (doc.getTextWidth(out) > maxW) {
+          while (out.length > 1 && doc.getTextWidth(out + "...") > maxW) out = out.slice(0, -1);
+          out = out.trimEnd() + "...";
+        }
+      }
+      doc.text(out, x, y, { align });
+    };
+
+    const wrap = (s, maxW, size = 8, bold = false) => {
+      doc.setFont("helvetica", bold ? "bold" : "normal");
+      doc.setFontSize(size);
+      return doc.splitTextToSize(clean(s), maxW);
+    };
+
+    const box = (x, y, w, h, fill, o = {}) => {
+      const { r = 3, stroke = null, sw = 0.3 } = o;
+      if (w <= 0 || h <= 0) return;
+      const rr = Math.min(r, w / 2, h / 2);
+      doc.setFillColor(...fill);
+      if (stroke) {
+        doc.setDrawColor(...stroke);
+        doc.setLineWidth(sw);
+        doc.roundedRect(x, y, w, h, rr, rr, "FD");
+      } else {
+        doc.roundedRect(x, y, w, h, rr, rr, "F");
+      }
+    };
+
+    const line = (x1, y1, x2, y2, color = C.slate200, w = 0.3) => {
+      doc.setDrawColor(...color);
+      doc.setLineWidth(w);
+      doc.line(x1, y1, x2, y2);
+    };
+
+    // align: "left" => x is left edge, "right" => x is right edge
+    const pill = (text, x, y, bg, fg, align = "left", size = 6) => {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(size);
+      const label = clean(text);
+      const w = doc.getTextWidth(label) + 8;
+      const px = align === "right" ? x - w : x;
+      box(px, y, w, 6, bg, { r: 3 });
+      doc.setTextColor(...fg);
+      doc.text(label, px + w / 2, y + 4.1, { align: "center" });
+      return w;
+    };
+
+    const ring = (cx, cy, r, pct, color, label) => {
+      doc.setDrawColor(...C.slate200);
+      doc.setLineWidth(2.2);
+      doc.circle(cx, cy, r, "S");
+      if (pct !== null) {
+        const p = clamp(pct, 0, 1);
+        const steps = Math.max(2, Math.round(p * 96));
+        doc.setLineCap("round");
+        doc.setDrawColor(...color);
+        doc.setLineWidth(2.2);
+        for (let i = 0; i < steps; i++) {
+          const a1 = -Math.PI / 2 + (2 * Math.PI * p * i) / steps;
+          const a2 = -Math.PI / 2 + (2 * Math.PI * p * (i + 1)) / steps;
+          doc.line(cx + r * Math.cos(a1), cy + r * Math.sin(a1), cx + r * Math.cos(a2), cy + r * Math.sin(a2));
+        }
+        doc.setLineCap("butt");
+      }
+      txt(label, cx, cy + 1.6, { size: 6.5, bold: true, color: C.navy, align: "center" });
+    };
+
+    const bar = (x, y, w, h, pct, color, track = C.slate200) => {
+      box(x, y, w, h, track, { r: h / 2 });
+      box(x, y, w * clamp(pct, 0, 1), h, color, { r: h / 2 });
+    };
+
+    const gaugeColor = (p, accent) => (p > 1 ? C.red : p > 0.9 ? C.amber : accent);
+
+    const icon = (cx, cy, kind) => {
+      const col = kind === "ok" ? C.green : kind === "warn" ? C.amber : C.red;
+      doc.setFillColor(...col);
+      doc.circle(cx, cy, 4.6, "F");
+      doc.setDrawColor(...C.white);
+      doc.setLineWidth(0.9);
+      doc.setLineCap("round");
+      if (kind === "ok") {
+        doc.line(cx - 2, cy + 0.2, cx - 0.6, cy + 1.7);
+        doc.line(cx - 0.6, cy + 1.7, cx + 2.2, cy - 1.6);
+      } else if (kind === "fail") {
+        doc.line(cx - 1.7, cy - 1.7, cx + 1.7, cy + 1.7);
+        doc.line(cx + 1.7, cy - 1.7, cx - 1.7, cy + 1.7);
+      } else {
+        doc.line(cx, cy - 2.1, cx, cy + 0.6);
+        doc.circle(cx, cy + 2, 0.2, "F");
+      }
+      doc.setLineCap("butt");
+    };
+
+    // ----------------------------------------------------------
+    // PAGE FRAME
+    // ----------------------------------------------------------
+    let y = 0;
+
+    const header = (section) => {
+      box(M, 10, 9, 9, C.green, { r: 2.4 });
+      txt("R", M + 4.5, 16.4, { size: 10, bold: true, color: C.white, align: "center" });
+      txt("ReRoute", M + 12, 15, { size: 12, bold: true, color: C.navy });
+      txt(section, M + 12, 19.2, { size: 5.8, bold: true, color: C.slate400 });
+      txt(`${cityName}  |  ${dateText}`, W - M, 15, { size: 7, color: C.slate500, align: "right" });
+      line(M, 25, W - M, 25, C.slate200, 0.4);
+      y = 36;
+    };
+
+    const newPage = (section) => {
+      doc.addPage();
+      header(section);
+    };
+
+    const ensure = (h, section) => {
+      if (y + h > BOTTOM) {
+        newPage(section);
+        return true;
+      }
+      return false;
+    };
+
+    const sectionTitle = (title, sub) => {
+      txt(title, M, y, { size: 12, bold: true, color: C.navy });
+      if (sub) txt(sub, W - M, y, { size: 6.8, color: C.slate500, align: "right" });
+      y += 6;
+    };
+
+    // ==========================================================
+    // PAGE 1 - HERO + DASHBOARD
+    // ==========================================================
+    const HERO = 90;
+    doc.setFillColor(...C.navy);
+    doc.rect(0, 0, W, HERO, "F");
+    doc.setFillColor(...C.navy2);
+    doc.circle(W - 8, 6, 46, "F");
+    doc.setFillColor(...C.navy);
+    doc.circle(W - 8, 6, 30, "F");
+    doc.setFillColor(...C.navy2);
+    doc.circle(W - 8, 6, 16, "F");
+    doc.setFillColor(...C.green);
+    doc.rect(0, 0, W, 2.6, "F");
+
+    box(M, 11, 9, 9, C.green, { r: 2.4 });
+    txt("R", M + 4.5, 17.4, { size: 10, bold: true, color: C.white, align: "center" });
+    txt("ReRoute", M + 12, 17.6, { size: 13, bold: true, color: C.white });
+    pill("OPTIMIZED ITINERARY", W - M, 12, C.greenDark, C.white, "right");
+
+    txt("Your Day,", M, 38, { size: 27, bold: true, color: C.white });
+    txt("Optimized.", M, 49, { size: 27, bold: true, color: C.mint });
+    txt(`${cityName}  |  ${dateText}  |  ${safe(dayStart)} - ${safe(dayEnd)}`, M, 57, {
+      size: 8.5,
+      color: C.slate300,
+    });
+
+    // route strip: every stop, not just start and end
+    const n = stops.length;
+    const rx0 = M + 8;
+    const rx1 = W - M - 8;
+    const ry = 68;
+    const step = n > 1 ? (rx1 - rx0) / (n - 1) : 0;
+    const rx = (i) => (n > 1 ? rx0 + step * i : (rx0 + rx1) / 2);
+    line(rx0, ry, rx1, ry, C.slate600, 0.6);
+    if (n > 1) line(rx0, ry, rx1, ry, C.green, 1.2);
+    txt("START", rx(0), ry - 6, { size: 5.5, bold: true, color: C.mint, align: "center" });
+    if (n > 1) txt("END", rx(n - 1), ry - 6, { size: 5.5, bold: true, color: C.mint, align: "center" });
+    stops.forEach((s, i) => {
+      doc.setFillColor(...C.navy);
+      doc.circle(rx(i), ry, 4.8, "F");
+      doc.setFillColor(...C.green);
+      doc.circle(rx(i), ry, 3.8, "F");
+      txt(String(i + 1), rx(i), ry + 1.5, { size: 6.5, bold: true, color: C.white, align: "center" });
+      const lw = n > 1 ? Math.min(42, step - 3) : 60;
+      txt(s.name, rx(i), ry + 9, { size: 6.3, color: C.slate300, align: "center", maxW: lw });
+    });
+
+    // KPI cards overlapping the hero
+    y = HERO - 8;
+    const gap = 5;
+    const kw = (CW - gap * 2) / 3;
+    const kh = 46;
+    const kpis = [
+      {
+        label: "Total cost",
+        value: money(used.cost),
+        sub: budgetLimit ? `${money(Math.max(0, budgetLimit - used.cost))} remaining of ${money(budgetLimit)}` : "No budget cap set",
+        pct: budgetLimit ? used.cost / budgetLimit : null,
+        accent: C.green,
+      },
+      {
+        label: "Total time",
+        value: fmtMin(used.minutes),
+        sub: `${activityMin} min activities | ${travelMin} min transit`,
+        pct: used.minutes / windowMin,
+        accent: C.blue,
+      },
+      {
+        label: "Carbon",
+        value: carbon(used.carbon),
+        sub: carbonLimit ? `${Math.max(0, carbonLimit - used.carbon).toFixed(1)} kg remaining of ${carbonLimit.toFixed(1)}` : "No carbon cap set",
+        pct: carbonLimit ? used.carbon / carbonLimit : null,
+        accent: C.greenDark,
+      },
+    ];
+    kpis.forEach((k, i) => {
+      const x = M + i * (kw + gap);
+      box(x + 0.6, y + 1, kw, kh, C.slate200, { r: 5 }); // soft shadow
+      box(x, y, kw, kh, C.white, { r: 5, stroke: C.slate200 });
+      box(x, y + 8, 1.6, 14, k.accent, { r: 0.8 });
+      txt(k.label.toUpperCase(), x + 7, y + 10, { size: 6, bold: true, color: C.slate500 });
+      ring(
+        x + kw - 13,
+        y + 15,
+        6.8,
+        k.pct,
+        gaugeColor(k.pct ?? 0, k.accent),
+        k.pct === null ? "--" : `${Math.round(k.pct * 100)}%`
+      );
+      txt(k.value, x + 7, y + 29, { size: 14, bold: true, color: C.navy, maxW: kw - 12 });
+      wrap(k.sub, kw - 14, 6.3)
+        .slice(0, 2)
+        .forEach((l, li) => txt(l, x + 7, y + 35.5 + li * 3.6, { size: 6.3, color: C.slate500 }));
+    });
+    y += kh + 12;
+
+    // Day at a glance - gantt
+    sectionTitle("Your day at a glance", `${safe(dayStart)} to ${safe(dayEnd)}`);
+    const trackY = y + 1;
+    const trackH = 13;
+    const tx = (t) => M + (clamp(t, ds, de) - ds) / windowMin * CW;
+    box(M, trackY, CW, trackH, C.slate100, { r: 3, stroke: C.slate200 });
+
+    const segs = [];
+    stops.forEach((s, i) => {
+      if (i > 0 && transfers[i - 1]) {
+        const a = toMin(transfers[i - 1].departure_time);
+        const b = toMin(transfers[i - 1].arrival_time);
+        if (a !== null && b !== null) segs.push({ a, b, color: C.blue });
+      }
+      const a = toMin(s.arrival);
+      const b = toMin(s.departure);
+      const wait = Number(s.wait_minutes) || 0;
+      if (a !== null && wait > 0) segs.push({ a: a - wait, b: a, color: C.amber });
+      if (a !== null && b !== null) segs.push({ a, b, color: C.green, idx: i + 1 });
+    });
+    segs.forEach((s) => {
+      const x0 = tx(s.a);
+      const w = Math.max(0.9, tx(s.b) - x0);
+      doc.setFillColor(...s.color);
+      doc.rect(x0, trackY + 1.5, w, trackH - 3, "F");
+      if (s.idx && w > 6) txt(String(s.idx), x0 + w / 2, trackY + trackH / 2 + 1.7, { size: 7, bold: true, color: C.white, align: "center" });
+    });
+
+    const tickStep = windowMin > 600 ? 120 : 60;
+    for (let t = Math.ceil(ds / tickStep) * tickStep; t <= de; t += tickStep) {
+      const x = tx(t);
+      line(x, trackY + trackH, x, trackY + trackH + 1.6, C.slate400, 0.3);
+      const hh = String(Math.floor(t / 60) % 24).padStart(2, "0");
+      txt(`${hh}:${String(t % 60).padStart(2, "0")}`, x, trackY + trackH + 5, { size: 5.8, color: C.slate500, align: "center" });
+    }
+    y = trackY + trackH + 10;
+
+    const legend = [
+      ["Activity", C.green],
+      ["Travel", C.blue],
+      ["Wait", C.amber],
+      ["Free time", C.slate200],
+    ];
+    let lx = M;
+    legend.forEach(([label, col]) => {
+      box(lx, y - 2.6, 3.2, 3.2, col, { r: 0.8 });
+      txt(label, lx + 5, y, { size: 6.3, color: C.slate600 });
+      lx += 24;
+    });
+    txt(`${fmtMin(Math.max(0, windowMin - used.minutes))} of free buffer in your day window`, W - M, y, {
+      size: 6.3,
+      color: C.slate500,
+      align: "right",
+    });
+    y += 11;
+
+    // Trip configuration
+    sectionTitle("Trip configuration");
+    const cw3 = (CW - gap * 2) / 3;
+    const cfg = [
+      ["DATE", safe(dayDate)],
+      ["DAY WINDOW", `${safe(dayStart)} to ${safe(dayEnd)}`],
+      ["TRANSPORT", transportText],
+      ["BUDGET LIMIT", budgetLimit ? money(budgetLimit) : "No limit"],
+      ["CARBON LIMIT", carbonLimit ? carbon(carbonLimit) : "No limit"],
+      ["ATTRACTIONS", `${safe(summary.stops_count, stops.length)} selected`],
+    ];
+    cfg.forEach((c, i) => {
+      const x = M + (i % 3) * (cw3 + gap);
+      const cy = y + Math.floor(i / 3) * 21;
+      box(x, cy, cw3, 17, C.slate50, { r: 3.5, stroke: C.slate200 });
+      txt(c[0], x + 6, cy + 6.5, { size: 5.6, bold: true, color: C.slate400 });
+      txt(c[1], x + 6, cy + 12.5, { size: 8, bold: true, color: C.slate800, maxW: cw3 - 12 });
+    });
+    y += 48;
+
+    // Priorities
+    sectionTitle("Optimization priorities");
+    const pr = [
+      { label: "COST", value: Math.round((weights?.cost || 0) * 100), color: C.green },
+      { label: "TIME", value: Math.round((weights?.time || 0) * 100), color: C.blue },
+      { label: "CARBON", value: Math.round((weights?.carbon || 0) * 100), color: C.greenDark },
+    ];
+    pr.forEach((p, i) => {
+      const x = M + i * (cw3 + gap);
+      txt(p.label, x, y + 2, { size: 5.8, bold: true, color: C.slate500 });
+      txt(`${p.value}%`, x + cw3, y + 2, { size: 9, bold: true, color: p.color, align: "right" });
+      bar(x, y + 5, cw3, 3, p.value / 100, p.color);
+    });
+    const top = [...pr].sort((a, b) => b.value - a.value)[0];
+    txt(`The optimizer leaned toward ${top.label.toLowerCase()} (${top.value}%) whenever options traded off.`, M, y + 16, {
+      size: 7.5,
+      color: C.slate600,
+    });
+
+    // ==========================================================
+    // PAGE 2 - ITINERARY (auto-paginates)
+    // ==========================================================
+    const SEC2 = "CHRONOLOGICAL ITINERARY";
+    newPage(SEC2);
+    txt("Your journey", M, y + 4, { size: 21, bold: true, color: C.navy });
+    y += 11;
+    txt(`${stops.length} attractions  |  ${transfers.length} transfers  |  ${fmtMin(used.minutes)} total`, M, y, {
+      size: 8,
+      color: C.slate500,
+    });
+    y += 10;
+
+    const railX = 31;
+    const cardX = 41;
+    const cardW = W - M - cardX;
+    const GAP = 4;
+    let pageTop = y;
+
+    const elements = [];
+    stops.forEach((s, i) => {
+      if (i > 0) elements.push({ type: "t", data: transfers[i - 1], i: i - 1 });
+      elements.push({ type: "s", data: s, i });
+    });
+
+    elements.forEach((el, ei) => {
+      const isFirst = ei === 0;
+      const isLast = ei === elements.length - 1;
+
+      if (el.type === "t") {
+        const t = el.data;
+        if (!t) return;
+        const issue = transferIssue(t);
+        const h = issue ? 19 : 12;
+        if (ensure(h + GAP, SEC2)) pageTop = y;
+        const cy = y;
+
+        line(railX, Math.max(cy - GAP, pageTop), railX, cy + h + GAP, C.green, 1);
+        doc.setFillColor(...C.white);
+        doc.circle(railX, cy + 6, 2.6, "F");
+        doc.setFillColor(...C.blue);
+        doc.circle(railX, cy + 6, 1.5, "F");
+
+        box(cardX, cy, cardW, h, issue ? C.amberSoft : C.slate50, { r: 3, stroke: issue ? C.amberBorder : C.slate200 });
+        const mode = String(t.mode || "Transit").toUpperCase();
+        const isWalk = mode.includes("WALK");
+        const pw = pill(mode, cardX + 5, cy + 3, isWalk ? C.greenSoft : C.blueSoft, isWalk ? C.greenDark : C.blue);
+        txt(`${safe(t.departure_time)} - ${safe(t.arrival_time)}`, cardX + pw + 10, cy + 7.2, {
+          size: 7,
+          bold: true,
+          color: C.slate800,
+        });
+        txt(
+          `${Math.round(Number(t.minutes) || 0)} min  |  ${km(t.distance_km)}  |  ${money(t.cost)}  |  ${carbon(t.carbon_kg)}`,
+          cardX + cardW - 5,
+          cy + 7.2,
+          { size: 6.5, color: C.slate600, align: "right" }
+        );
+        if (issue) {
+          icon(cardX + 8, cy + 14.2, "warn");
+          doc.setFillColor(...C.amber);
+          wrap(issue, cardW - 24, 6.2, true)
+            .slice(0, 1)
+            .forEach((l) => txt(l, cardX + 15, cy + 15, { size: 6.2, bold: true, color: C.amber }));
+        }
+        y += h + GAP;
+        return;
+      }
+
+      // ---- STOP ----
+      const s = el.data;
+      const i = el.i;
+      const banners = [];
+      if (Number(s.wait_minutes) > 0) {
+        banners.push({ text: `WAIT ${Math.round(s.wait_minutes)} min  |  Opens at ${safe(s.opens_at)}`, bg: C.amberSoft, fg: C.amber });
+      }
+      if (stopHoursBad[i]) {
+        banners.push({ text: "VISIT FALLS OUTSIDE OPENING HOURS", bg: C.redSoft, fg: C.red });
+      }
+      const h = 38 + banners.length * 8;
+      if (ensure(h + GAP, SEC2)) pageTop = y;
+      const cy = y;
+
+      line(railX, isFirst ? cy + 8 : Math.max(cy - GAP, pageTop), railX, isLast ? cy + 8 : cy + h + GAP, C.green, 1);
+
+      // times to the left of the rail
+      txt(safe(s.arrival), M, cy + 7.6, { size: 7, bold: true, color: C.greenDark });
+      txt(safe(s.departure), M, cy + 12.2, { size: 6.3, color: C.slate400 });
+
+      doc.setFillColor(...C.white);
+      doc.circle(railX, cy + 8, 6.4, "F");
+      doc.setFillColor(...C.green);
+      doc.circle(railX, cy + 8, 5.2, "F");
+      txt(String(i + 1), railX, cy + 10.3, { size: 8, bold: true, color: C.white, align: "center" });
+
+      box(cardX + 0.5, cy + 0.8, cardW, h, C.slate100, { r: 4 }); // shadow
+      box(cardX, cy, cardW, h, C.white, { r: 4, stroke: C.slate200 });
+      box(cardX, cy + 5, 1.6, 12, C.green, { r: 0.8 });
+
+      let catW = 0;
+      if (s.category) catW = pill(String(s.category).toUpperCase(), cardX + cardW - 6, cy + 5, C.greenSoft, C.greenDark, "right");
+      txt(s.name, cardX + 7, cy + 10.5, { size: 10.5, bold: true, color: C.navy, maxW: cardW - 20 - catW });
+      txt(`${fmtMin(s.duration_minutes)} visit`, cardX + 7, cy + 17, { size: 7, color: C.slate500 });
+
+      line(cardX + 7, cy + 22, cardX + cardW - 7, cy + 22, C.slate200, 0.3);
+
+      const mw = (cardW - 14) / 3;
+      const metrics = [
+        ["ENTRY", Number(s.entry_cost) > 0 ? money(s.entry_cost) : "FREE"],
+        ["CARBON", carbon(s.carbon_kg)],
+        ["OPEN HOURS", s.opens_at && s.closes_at ? `${s.opens_at} - ${s.closes_at}` : "Not listed"],
+      ];
+      metrics.forEach((m, mi) => {
+        const mx = cardX + 7 + mi * mw;
+        txt(m[0], mx, cy + 28, { size: 5.6, bold: true, color: C.slate400 });
+        txt(m[1], mx, cy + 34, { size: 7.4, bold: true, color: C.slate800, maxW: mw - 3 });
+      });
+
+      banners.forEach((b, bi) => {
+        const by = cy + 38 + bi * 8 - 1;
+        box(cardX + 7, by, cardW - 14, 6.4, b.bg, { r: 2 });
+        txt(b.text, cardX + 11, by + 4.4, { size: 5.8, bold: true, color: b.fg });
+      });
+
+      y += h + GAP + 3;
+    });
+
+    // ==========================================================
+    // PAGE 3 - INTELLIGENCE
+    // ==========================================================
+    const SEC3 = "PLAN INTELLIGENCE";
+    newPage(SEC3);
+    pill("AI CONCIERGE", M, y - 4, C.blueSoft, C.blue);
+    y += 9;
+    txt("Why this plan works", M, y + 4, { size: 21, bold: true, color: C.navy });
+    y += 12;
+
+    const insight = clean(
+      aiNarrative || "Your itinerary was optimized across cost, time and carbon while respecting every configured constraint."
+    );
+    const iLines = wrap(insight, CW - 24, 8.5);
+    const iH = Math.max(34, iLines.length * 4.7 + 22);
+    ensure(iH + 8, SEC3);
+    box(M, y, CW, iH, C.greenSoft, { r: 5, stroke: C.greenBorder });
+    box(M, y + 6, 2, iH - 12, C.green, { r: 1 });
+    txt("OPTIMIZER INSIGHT", M + 10, y + 10, { size: 6.5, bold: true, color: C.greenDark });
+    iLines.forEach((l, li) => txt(l, M + 10, y + 17 + li * 4.7, { size: 8.5, color: C.slate700 }));
+    y += iH + 12;
+
+    // Constraint verification
+    ensure(24, SEC3);
+    sectionTitle("Constraint verification");
+    y += 2;
+    const timeOk = used.minutes <= windowMin;
+    const budgetOk = !budgetLimit || used.cost <= budgetLimit;
+    const carbonOk = !carbonLimit || used.carbon <= carbonLimit;
+    const hoursOk = !stopHoursBad.some(Boolean);
+    const mustOk = missingMust.length === 0;
+    const checks = [
+      { label: "TIME WINDOW", value: `${fmtMin(used.minutes)} / ${fmtMin(windowMin)}`, pct: used.minutes / windowMin, state: timeOk ? "ok" : "fail" },
+      { label: "BUDGET", value: budgetLimit ? `${money(used.cost)} / ${money(budgetLimit)}` : money(used.cost), pct: budgetLimit ? used.cost / budgetLimit : null, state: budgetOk ? "ok" : "fail" },
+      { label: "CARBON", value: carbonLimit ? `${carbon(used.carbon)} / ${carbon(carbonLimit)}` : carbon(used.carbon), pct: carbonLimit ? used.carbon / carbonLimit : null, state: carbonOk ? "ok" : "fail" },
+      { label: "OPENING HOURS", value: hoursOk ? `${stops.length} of ${stops.length} stops open on arrival` : `${stopHoursBad.filter(Boolean).length} stop(s) conflict`, pct: null, state: hoursOk ? "ok" : "fail" },
+      { label: "MANDATORY STOPS", value: mustOk ? `${requiredIds.length} required, all included` : `${missingMust.length} of ${requiredIds.length} missing`, pct: null, state: mustOk ? "ok" : "fail" },
+      { label: "TRANSFER REALISM", value: issues.length ? `${issues.length} item(s) need review` : "All transfers look realistic", pct: null, state: issues.length ? "warn" : "ok" },
+    ];
+    const vw = (CW - gap) / 2;
+    checks.forEach((c, i) => {
+      const x = M + (i % 2) * (vw + gap);
+      if (i % 2 === 0) ensure(26, SEC3);
+      const cy = y;
+      const bg = c.state === "ok" ? C.greenSoft : c.state === "warn" ? C.amberSoft : C.redSoft;
+      const bd = c.state === "ok" ? C.greenBorder : c.state === "warn" ? C.amberBorder : C.redBorder;
+      const fg = c.state === "ok" ? C.greenDark : c.state === "warn" ? C.amber : C.red;
+      box(x, cy, vw, 23, bg, { r: 4, stroke: bd });
+      icon(x + 9, cy + 9, c.state);
+      txt(c.label, x + 17, cy + 8, { size: 5.8, bold: true, color: C.slate500 });
+      txt(c.value, x + 17, cy + 14.2, { size: 7.4, bold: true, color: C.slate800, maxW: vw - 44 });
+      pill(c.state === "ok" ? "SATISFIED" : c.state === "warn" ? "REVIEW" : "EXCEEDED", x + vw - 5, cy + 5, C.white, fg, "right", 5.6);
+      if (c.pct !== null) bar(x + 17, cy + 18, vw - 26, 2, c.pct, gaugeColor(c.pct, C.green), C.white);
+      if (i % 2 === 1 || i === checks.length - 1) y += 27;
+    });
+    y += 4;
+
+    // Needs review
+    if (issues.length) {
+      ensure(20, SEC3);
+      sectionTitle("Needs review before you travel");
+      issues.forEach((msg) => {
+        const lines = wrap(msg, CW - 22, 7.2);
+        const h = lines.length * 4 + 8;
+        ensure(h + 3, SEC3);
+        box(M, y, CW, h, C.amberSoft, { r: 3.5, stroke: C.amberBorder });
+        icon(M + 8, y + h / 2, "warn");
+        lines.forEach((l, li) => txt(l, M + 16, y + 6 + li * 4, { size: 7.2, color: C.slate800 }));
+        y += h + 3;
+      });
+      y += 5;
+    }
+
+    // Spend breakdown
+    ensure(30, SEC3);
+    sectionTitle("Where your budget and carbon go");
+    txt("STOP", M + 2, y + 2, { size: 5.6, bold: true, color: C.slate400 });
+    txt("ENTRY COST", M + 62, y + 2, { size: 5.6, bold: true, color: C.slate400 });
+    txt("CARBON", M + 122, y + 2, { size: 5.6, bold: true, color: C.slate400 });
+    y += 5;
+    const totalEntry = stops.reduce((a, s) => a + (Number(s.entry_cost) || 0), 0) || 1;
+    const totalCarbon = stops.reduce((a, s) => a + (Number(s.carbon_kg) || 0), 0) || 1;
+    stops.forEach((s, i) => {
+      ensure(10, SEC3);
+      if (i % 2 === 0) box(M, y, CW, 9, C.slate50, { r: 2 });
+      txt(`${i + 1}. ${s.name}`, M + 2, y + 5.8, { size: 7.2, bold: true, color: C.slate800, maxW: 56 });
+      const ec = Number(s.entry_cost) || 0;
+      const cb = Number(s.carbon_kg) || 0;
+      txt(ec > 0 ? money(ec) : "FREE", M + 62, y + 5.8, { size: 6.6, color: C.slate700 });
+      bar(M + 77, y + 3.6, 40, 2.6, ec / totalEntry, C.green);
+      txt(carbon(cb), M + 122, y + 5.8, { size: 6.6, color: C.slate700 });
+      bar(M + 141, y + 3.6, 37, 2.6, cb / totalCarbon, C.greenDark);
+      y += 9;
+    });
+    y += 10;
+
+    // Final summary
+    ensure(40, SEC3);
+    box(M, y, CW, 36, C.navy, { r: 6 });
+    doc.setFillColor(...C.navy2);
+    doc.circle(W - M - 4, y + 2, 20, "F");
+    box(W - M - 24, y + 22, 24, 14, C.navy, { r: 6 });
+    icon(M + 11, y + 11, "ok");
+    txt("Plan complete", M + 20, y + 11.5, { size: 12, bold: true, color: C.white });
+    txt("A constraint-aware itinerary generated by ReRoute.", M + 20, y + 17, { size: 6.8, color: C.slate300 });
+    [
+      ["STOPS", safe(summary.stops_count, stops.length)],
+      ["TIME", fmtMin(used.minutes)],
+      ["COST", money(used.cost)],
+      ["CARBON", carbon(used.carbon)],
+    ].forEach((f, i) => {
+      const fx = M + 10 + i * 42;
+      txt(f[0], fx, y + 26, { size: 5.5, bold: true, color: C.slate400 });
+      txt(f[1], fx, y + 32, { size: 8.5, bold: true, color: C.white });
+    });
+
+    // ==========================================================
+    // FOOTERS ("Page X of N" on every page)
+    // ==========================================================
+    const total = doc.getNumberOfPages();
+    for (let p = 1; p <= total; p++) {
+      doc.setPage(p);
+      line(M, H - 14, W - M, H - 14, C.slate200, 0.4);
+      txt("ReRoute  |  Multi-Objective Itinerary Optimizer", M, H - 8, { size: 6.3, color: C.slate400 });
+      txt(`Page ${p} of ${total}`, W - M, H - 8, { size: 6.3, color: C.slate400, align: "right" });
+    }
+
+    doc.setProperties({
+      title: `ReRoute - ${cityName} ${dateText}`,
+      subject: "Optimized day itinerary",
+      creator: "ReRoute",
+    });
+
+    doc.save(`ReRoute-${slugify(cityName)}-${dayDate || "plan"}.pdf`);
+  };
+
+  // ============================================================
   // RENDER
   // ============================================================
 
@@ -1540,42 +2298,61 @@ export default function Planner() {
             </div>
 
             {result && (
-              <span
-                className={
-                  `status-pill ${result.feasible
-                    ? "feasible"
-                    : "infeasible"
-                  }`
-                }
-              >
+              <div className="results-header-actions">
 
-                {result.feasible ? (
-                  <>
-                    <CheckCircle2
-                      size={14}
-                    />
+                {/* Download Plan */}
 
-                    <span>
-                      {
-                        t.feasibleBadge
-                      }
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle
-                      size={14}
-                    />
-
-                    <span>
-                      {
-                        t.infeasibleBadge
-                      }
-                    </span>
-                  </>
+                {result.feasible && (
+                  <button
+                    type="button"
+                    className="download-plan-btn"
+                    onClick={handleDownloadPlan}
+                  >
+                    <Download size={16} />
+                    <span>Download Plan</span>
+                  </button>
                 )}
 
-              </span>
+                {/* Status */}
+
+                <span
+                  className={
+                    `status-pill ${result.feasible
+                      ? "feasible"
+                      : "infeasible"
+                    }`
+                  }
+                >
+
+                  {result.feasible ? (
+                    <>
+                      <CheckCircle2
+                        size={14}
+                      />
+
+                      <span>
+                        {
+                          t.feasibleBadge
+                        }
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle
+                        size={14}
+                      />
+
+                      <span>
+                        {
+                          t.infeasibleBadge
+                        }
+                      </span>
+                    </>
+                  )}
+
+                </span>
+
+              </div>
             )}
 
           </div>
