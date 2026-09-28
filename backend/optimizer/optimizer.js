@@ -1319,10 +1319,10 @@ async function buildProductionTravelGraph(
 
   const cacheModes =
     Array.isArray(allowedModes) &&
-    allowedModes.length > 0
+      allowedModes.length > 0
       ? allowedModes
-          .map(mode => String(mode).toLowerCase())
-          .sort()
+        .map(mode => String(mode).toLowerCase())
+        .sort()
       : ["cab"];
 
   const cacheKey =
@@ -1352,7 +1352,7 @@ async function buildProductionTravelGraph(
 
   const modes =
     Array.isArray(allowedModes) &&
-    allowedModes.length > 0
+      allowedModes.length > 0
       ? allowedModes
       : ["cab"];
 
@@ -1399,42 +1399,124 @@ async function buildProductionTravelGraph(
       const existingEdges =
         edgeMap.get(key) || [];
 
-      const hasCompatibleMatrixEdge =
-        existingEdges.some(existingEdge => {
-          return modes.includes(
-            String(
-              existingEdge.mode || ""
-            ).toLowerCase()
-          );
-        });
+      // ============================================================
+      // CHECK WHICH MODES ALREADY EXIST IN THE MATRIX
+      // ============================================================
 
-      if (hasCompatibleMatrixEdge) {
+      const existingModes = new Set(
+        existingEdges
+          .map(edge =>
+            String(edge.mode || "")
+              .trim()
+              .toLowerCase()
+          )
+          .filter(Boolean)
+      );
+
+      // Only request dynamic routing for modes
+      // that are actually missing from the matrix.
+      const missingModes = modes.filter(
+        mode =>
+          !existingModes.has(
+            String(mode).toLowerCase()
+          )
+      );
+
+      // If every requested mode already exists,
+      // the database matrix is sufficient.
+      if (missingModes.length === 0) {
         continue;
       }
 
       try {
-        const edge =
-          await resolveTravel({
-            fromPoi,
-            toPoi,
-            allowedModes: modes
-          });
 
-        if (!edge) {
-          continue;
+        // ==========================================================
+        // RESOLVE MISSING ROUTING MODES
+        // ==========================================================
+
+        const dynamicEdges = [];
+
+        for (const missingMode of missingModes) {
+
+          try {
+
+            const edge =
+              await resolveTravel({
+                fromPoi,
+                toPoi,
+                allowedModes: [missingMode]
+              });
+
+            if (!edge) {
+              continue;
+            }
+
+            dynamicEdges.push({
+              ...edge,
+
+              mode:
+                edge.mode ||
+                missingMode
+            });
+
+            dynamicRoutes++;
+
+          } catch (modeError) {
+
+            console.warn(
+              `[ReRoute 2.0] Unable to resolve ${missingMode} route ${fromPoi.poi_id} -> ${toPoi.poi_id}: ${modeError.message}`
+            );
+
+          }
         }
 
-        edgeMap.set(
-          key,
-          [edge]
-        );
+        // ==========================================================
+        // MERGE MATRIX + DYNAMIC ROUTES
+        // ==========================================================
 
-        dynamicRoutes++;
+        if (dynamicEdges.length > 0) {
+
+          const mergedEdges = [
+            ...existingEdges,
+            ...dynamicEdges
+          ];
+
+          // Remove duplicate modes while preserving
+          // the existing matrix edge when available.
+          const uniqueEdges = [];
+          const seenModes = new Set();
+
+          for (const edge of mergedEdges) {
+
+            const mode =
+              String(edge.mode || "")
+                .trim()
+                .toLowerCase();
+
+            if (!mode) {
+              continue;
+            }
+
+            if (seenModes.has(mode)) {
+              continue;
+            }
+
+            seenModes.add(mode);
+            uniqueEdges.push(edge);
+          }
+
+          edgeMap.set(
+            key,
+            uniqueEdges
+          );
+        }
 
       } catch (error) {
+
         console.warn(
           `[ReRoute 2.0] Unable to resolve ${fromPoi.poi_id} -> ${toPoi.poi_id}: ${error.message}`
         );
+
       }
     }
   }
@@ -1444,7 +1526,7 @@ async function buildProductionTravelGraph(
   );
 
 
-  const graphToCache  =
+  const graphToCache =
     new Map(
       Array.from(edgeMap.entries()).map(([key, edges]) => [
         key,

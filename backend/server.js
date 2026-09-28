@@ -55,7 +55,11 @@ app.use('/api/ai', aiRoute);
 
 app.post('/api/plan-my-day', async (req, res) => {
   try {
-    const { prompt, city_id } = req.body;
+    const {
+      prompt,
+      city_id,
+      planner_context
+    } = req.body;
 
     if (!prompt) {
       return res.status(400).json({
@@ -67,12 +71,19 @@ app.post('/api/plan-my-day', async (req, res) => {
       });
     }
 
-    const plan = await generateAiPlan(prompt, city_id);
+    const plan = await generateAiPlan(
+      prompt,
+      city_id,
+      planner_context || {}
+    );
 
     res.json(plan);
 
   } catch (error) {
-    console.error('Error in /api/plan-my-day:', error);
+    console.error(
+      'Error in /api/plan-my-day:',
+      error
+    );
 
     res.status(500).json({
       success: false,

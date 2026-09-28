@@ -359,7 +359,7 @@ export default function PlannerForm({
     const matchesCategory =
       selectedCategory === 'all' ||
       poi.poi_category ===
-        selectedCategory;
+      selectedCategory;
 
     return (
       matchesSearch &&
@@ -454,11 +454,42 @@ export default function PlannerForm({
     setAiSuccessMessage('');
 
     try {
-      const data =
-        await planMyDay(
-          aiPrompt,
-          selectedCityId
-        );
+      const data = await planMyDay(
+        aiPrompt,
+        selectedCityId,
+        {
+          day_date: dayDate,
+
+          day_start: dayStart,
+          day_end: dayEnd,
+
+          budget_cap:
+            budgetCap !== ''
+              ? Number(budgetCap)
+              : null,
+
+          carbon_cap_kg:
+            carbonCap !== ''
+              ? Number(carbonCap)
+              : null,
+
+          start_poi_id:
+            startPoiId || null,
+
+          end_poi_id:
+            endPoiId || null,
+
+          must_see_poi_ids:
+            Array.isArray(mustSeePoiIds)
+              ? mustSeePoiIds
+              : [],
+
+          allowed_modes:
+            Array.isArray(allowedModes)
+              ? allowedModes
+              : []
+        }
+      );
 
       if (
         data &&
@@ -482,11 +513,11 @@ export default function PlannerForm({
 
         if (
           data.parsed_intent?.budget_cap !==
-            undefined &&
+          undefined &&
           data.parsed_intent?.budget_cap !==
-            null &&
+          null &&
           data.parsed_intent?.budget_cap !==
-            ''
+          ''
         ) {
           setBudgetCap(
             String(
@@ -498,11 +529,11 @@ export default function PlannerForm({
 
         if (
           data.parsed_intent?.carbon_cap_kg !==
-            undefined &&
+          undefined &&
           data.parsed_intent?.carbon_cap_kg !==
-            null &&
+          null &&
           data.parsed_intent?.carbon_cap_kg !==
-            ''
+          ''
         ) {
           setCarbonCap(
             String(
@@ -645,7 +676,7 @@ export default function PlannerForm({
 
         if (
           typeof setWeights ===
-            'function' &&
+          'function' &&
           data.parsed_intent
             ?.weights
         ) {
@@ -698,7 +729,7 @@ export default function PlannerForm({
         } else {
           setAiSuccessMessage(
             data.ai_status?.message ||
-              'AI planned your day based on your preferences!'
+            'AI planned your day based on your preferences!'
           );
         }
 
@@ -714,7 +745,7 @@ export default function PlannerForm({
       } else {
         throw new Error(
           data?.error ||
-            'Failed to generate itinerary plan.'
+          'Failed to generate itinerary plan.'
         );
       }
     } catch (err) {
@@ -725,7 +756,7 @@ export default function PlannerForm({
 
       setAiError(
         err.message ||
-          'Could not complete AI planning request.'
+        'Could not complete AI planning request.'
       );
     } finally {
       setAiLoading(false);
@@ -1408,11 +1439,10 @@ export default function PlannerForm({
                   <button
                     key={id}
                     type="button"
-                    className={`transport-option ${
-                      selected
+                    className={`transport-option ${selected
                         ? 'selected'
                         : ''
-                    }`}
+                      }`}
                     onClick={() =>
                       toggleTransportMode(
                         id
@@ -1524,7 +1554,7 @@ export default function PlannerForm({
                     }
                   >
                     {category ===
-                    'all'
+                      'all'
                       ? t.allCats
                       : category.toUpperCase()}
                   </option>
@@ -1542,62 +1572,61 @@ export default function PlannerForm({
         {mustSeePoiIds.length >
           0 && (
 
-          <div className="selected-chips-row">
+            <div className="selected-chips-row">
 
-            {mustSeePoiIds.map(
-              (id) => {
+              {mustSeePoiIds.map(
+                (id) => {
 
-                const poi =
-                  pois.find(
-                    (item) =>
-                      item.poi_id ===
-                      id
-                  );
+                  const poi =
+                    pois.find(
+                      (item) =>
+                        item.poi_id ===
+                        id
+                    );
 
-                return (
+                  return (
 
-                  <div
-                    key={id}
-                    className="selected-poi-chip"
-                  >
-
-                    <span>
-
-                      {poi
-                        ? poi.name
-                        : id}
-
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        toggleMustSee(
-                          id
-                        )
-                      }
-                      aria-label={`Remove ${
-                        poi
-                          ? poi.name
-                          : id
-                      }`}
+                    <div
+                      key={id}
+                      className="selected-poi-chip"
                     >
 
-                      <X
-                        size={13}
-                      />
+                      <span>
 
-                    </button>
+                        {poi
+                          ? poi.name
+                          : id}
 
-                  </div>
+                      </span>
 
-                );
-              }
-            )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          toggleMustSee(
+                            id
+                          )
+                        }
+                        aria-label={`Remove ${poi
+                            ? poi.name
+                            : id
+                          }`}
+                      >
 
-          </div>
+                        <X
+                          size={13}
+                        />
 
-        )}
+                      </button>
+
+                    </div>
+
+                  );
+                }
+              )}
+
+            </div>
+
+          )}
 
         {/* POI cards */}
 
@@ -1631,11 +1660,10 @@ export default function PlannerForm({
                   key={
                     poi.poi_id
                   }
-                  className={`poi-select-card ${
-                    isSelected
+                  className={`poi-select-card ${isSelected
                       ? 'selected'
                       : ''
-                  }`}
+                    }`}
                   onClick={() =>
                     toggleMustSee(
                       poi.poi_id
@@ -1649,9 +1677,9 @@ export default function PlannerForm({
 
                     if (
                       event.key ===
-                        'Enter' ||
+                      'Enter' ||
                       event.key ===
-                        ' '
+                      ' '
                     ) {
 
                       event.preventDefault();
@@ -1672,11 +1700,10 @@ export default function PlannerForm({
                     </span>
 
                     <div
-                      className={`checkbox-indicator ${
-                        isSelected
+                      className={`checkbox-indicator ${isSelected
                           ? 'checked'
                           : ''
-                      }`}
+                        }`}
                     >
 
                       {isSelected && (
@@ -1748,35 +1775,35 @@ export default function PlannerForm({
                   {(isStart ||
                     isEnd) && (
 
-                    <div className="poi-route-tags">
+                      <div className="poi-route-tags">
 
-                      {isStart && (
-                        <span className="poi-route-tag start">
+                        {isStart && (
+                          <span className="poi-route-tag start">
 
-                          <Navigation
-                            size={10}
-                          />
+                            <Navigation
+                              size={10}
+                            />
 
-                          {t.start}
+                            {t.start}
 
-                        </span>
-                      )}
+                          </span>
+                        )}
 
-                      {isEnd && (
-                        <span className="poi-route-tag end">
+                        {isEnd && (
+                          <span className="poi-route-tag end">
 
-                          <Flag
-                            size={10}
-                          />
+                            <Flag
+                              size={10}
+                            />
 
-                          {t.end}
+                            {t.end}
 
-                        </span>
-                      )}
+                          </span>
+                        )}
 
-                    </div>
+                      </div>
 
-                  )}
+                    )}
 
                 </div>
 

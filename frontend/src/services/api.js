@@ -56,18 +56,36 @@ export async function parseIntent(prompt) {
   return res.json();
 }
 
-export async function planMyDay(prompt, cityId = null) {
-  const res = await fetch(`${BASE_URL}/ai/plan`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ prompt, city_id: cityId })
-  });
+export async function planMyDay(
+  prompt,
+  cityId = null,
+  plannerContext = {}
+) {
+  const res = await fetch(
+    `${BASE_URL}/explain/plan-my-day`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        prompt,
+        city_id: cityId,
+        planner_context: plannerContext
+      })
+    }
+  );
+
   if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error?.message || `Failed to generate AI plan: ${res.statusText}`);
+    const errData =
+      await res.json().catch(() => ({}));
+
+    throw new Error(
+      errData.error?.message ||
+      `Failed to generate AI plan: ${res.statusText}`
+    );
   }
+
   return res.json();
 }
 

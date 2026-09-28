@@ -2,22 +2,34 @@
  * ReRoute 2.0
  * Objective scoring module
  *
- * Primary objectives:
- *   1. Cost
- *   2. Time
- *   3. Carbon
+ * PRIMARY OBJECTIVES
+ * ------------------
+ * 1. Cost
+ * 2. Time
+ * 3. Carbon
  *
- * Secondary itinerary-quality objective:
- *   4. Day utilization / itinerary richness
+ * SECONDARY OBJECTIVE
+ * -------------------
+ * Itinerary richness / day utilization
  *
- * The richness factor is intentionally bounded and small.
- * It prevents a trivial 1-stop itinerary from always winning
- * merely because it is extremely cheap or short, while keeping
- * cost/time/carbon as the user's primary objectives.
+ * IMPORTANT:
+ * Cost / Time / Carbon are controlled directly by the
+ * user's weights.
+ *
+ * Richness is intentionally tiny and acts only as a
+ * tie-breaker. It must NEVER overpower the user's
+ * selected optimization priority.
  */
 
+/**
+ * ============================================================
+ * NORMALIZE WEIGHTS
+ * ============================================================
+ */
 function normalizeWeights(weights) {
+
   const w = {
+
     cost:
       typeof weights?.cost === 'number'
         ? Math.max(0, weights.cost)
@@ -32,149 +44,199 @@ function normalizeWeights(weights) {
       typeof weights?.carbon === 'number'
         ? Math.max(0, weights.carbon)
         : 0.3334
+
   };
 
-  const sum = w.cost + w.time + w.carbon;
+  const sum =
+    w.cost +
+    w.time +
+    w.carbon;
 
   if (sum <= 0) {
+
     return {
       cost: 0.3333,
       time: 0.3333,
       carbon: 0.3334
     };
+
   }
 
   return {
-    cost: w.cost / sum,
-    time: w.time / sum,
-    carbon: w.carbon / sum
+
+    cost:
+      w.cost / sum,
+
+    time:
+      w.time / sum,
+
+    carbon:
+      w.carbon / sum
+
   };
 }
 
+
 /**
- * Clamp a value between min and max.
+ * ============================================================
+ * CLAMP
+ * ============================================================
  */
 function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
+
+  return Math.min(
+    max,
+    Math.max(min, value)
+  );
+
 }
 
-/**
- * Calculate a bounded itinerary-quality penalty.
- *
- * A day planner should not automatically select a tiny itinerary
- * when there is substantial time available.
- *
- * This does NOT force a minimum number of stops.
- * It simply gives richer, better-utilized itineraries a modest
- * advantage when they remain feasible.
- */
-function calculateRichnessPenalty(candidate, bounds) {
-  const summary = candidate.summary || {};
 
-  const totalMinutes = Number(summary.minutes) || 0;
+/**
+ * ============================================================
+ * ITINERARY RICHNESS
+ * ============================================================
+ *
+ * This is deliberately VERY small.
+ *
+ * It should help break ties between otherwise similar
+ * itineraries, but it should never defeat the user's
+ * Cost / Time / Carbon preference.
+ */
+function calculateRichnessPenalty(
+  candidate,
+  bounds
+) {
+
+  const summary =
+    candidate.summary || {};
+
+  const totalMinutes =
+    Number(summary.minutes) || 0;
+
   const activityMinutes =
     Number(summary.activity_minutes) || 0;
 
-  const travelMinutes =
-    Number(summary.travel_minutes) || 0;
-
   const stops =
-    Number(candidate.summary?.stops_count) || 0;
+    Number(summary.stops_count) || 0;
 
   const timeLimit =
     Number(bounds?.time_limit_minutes) || 0;
 
-  if (timeLimit <= 0 || stops <= 0) {
+  if (
+    timeLimit <= 0 ||
+    stops <= 0
+  ) {
+
     return 0;
+
   }
 
-  /*
-   * ----------------------------------------------------------
-   * 1. DAY UTILIZATION
-   * ----------------------------------------------------------
-   *
-   * How much of the available planning window is actually used?
-   *
-   * We cap this at 1 so unusually long plans cannot receive
-   * extra benefit.
-   */
-  const utilization =
-    clamp(totalMinutes / timeLimit, 0, 1);
 
-  /*
-   * ----------------------------------------------------------
-   * 2. ACTIVITY UTILIZATION
-   * ----------------------------------------------------------
-   *
-   * Prefer actual experiences over an itinerary dominated by
-   * travel/waiting.
-   */
+  // ----------------------------------------------------------
+  // DAY UTILIZATION
+  // ----------------------------------------------------------
+
+  const utilization =
+    clamp(
+      totalMinutes / timeLimit,
+      0,
+      1
+    );
+
+
+  // ----------------------------------------------------------
+  // ACTIVITY RATIO
+  // ----------------------------------------------------------
+
   const activityRatio =
     totalMinutes > 0
-      ? clamp(activityMinutes / totalMinutes, 0, 1)
+      ? clamp(
+          activityMinutes / totalMinutes,
+          0,
+          1
+        )
       : 0;
 
-  /*
-   * ----------------------------------------------------------
-   * 3. STOP RICHNESS
-   * ----------------------------------------------------------
-   *
-   * Reward additional meaningful stops, but with diminishing
-   * returns. This avoids turning the optimizer into "visit as
-   * many places as possible".
-   *
-   * 1 stop  -> 0.35
-   * 2 stops -> 0.60
-   * 3 stops -> 0.78
-   * 4 stops -> 0.90
-   * 5+      -> 1.00
-   */
-  const stopRichness =
-    1 - Math.exp(-0.55 * stops);
 
-  /*
-   * ----------------------------------------------------------
-   * COMBINED QUALITY
-   * ----------------------------------------------------------
-   */
+  // ----------------------------------------------------------
+  // STOP RICHNESS
+  // ----------------------------------------------------------
+
+  const stopRichness =
+    1 -
+    Math.exp(
+      -0.55 * stops
+    );
+
+
+  // ----------------------------------------------------------
+  // QUALITY
+  // ----------------------------------------------------------
+
   const quality =
     (0.50 * utilization) +
     (0.30 * activityRatio) +
     (0.20 * stopRichness);
 
+
   /*
-   * Keep this deliberately small.
+   * Maximum penalty = 0.02
    *
-   * The maximum penalty is 0.12, so cost/time/carbon still
-   * dominate the optimization.
+   * This is intentionally tiny.
    */
   return clamp(
-    0.12 * (1 - quality),
+    0.02 * (1 - quality),
     0,
-    0.12
+    0.02
   );
+
 }
 
+
 /**
- * Normalizes candidates across an evaluation pool using
- * Min-Max scaling and then applies the weighted objective.
+ * ============================================================
+ * SCORE CANDIDATES
+ * ============================================================
  *
- * A small bounded itinerary-richness adjustment is applied
- * after the primary objective score.
+ * Lower score = better itinerary.
+ *
+ * Cost / Time / Carbon:
+ *
+ *     weighted normalized objective
+ *
+ * Richness:
+ *
+ *     tiny secondary tie-breaker
  */
-function scoreCandidates(candidates, weights, bounds) {
+function scoreCandidates(
+  candidates,
+  weights,
+  bounds
+) {
 
-  const planningIntent = bounds?.planning_intent || 'route_optimization';
+  if (
+    !candidates ||
+    candidates.length === 0
+  ) {
 
-  if (!candidates || candidates.length === 0) {
     return [];
+
   }
 
-  const nw = normalizeWeights(weights);
 
-  // ----------------------------------------------------------
-  // Find min/max across feasible candidates
-  // ----------------------------------------------------------
+  const nw =
+    normalizeWeights(weights);
+
+
+  const planningIntent =
+    bounds?.planning_intent ||
+    'route_optimization';
+
+
+  // ==========================================================
+  // FIND OBJECTIVE RANGES
+  // ==========================================================
 
   let minCost = Infinity;
   let maxCost = -Infinity;
@@ -185,196 +247,524 @@ function scoreCandidates(candidates, weights, bounds) {
   let minCarbon = Infinity;
   let maxCarbon = -Infinity;
 
-  for (const c of candidates) {
+
+  for (
+    const candidate of candidates
+  ) {
+
+    const summary =
+      candidate.summary || {};
+
+
     const cost =
-      Number(c.summary?.cost_cents) || 0;
+      Number(
+        summary.cost_cents
+      ) || 0;
+
 
     const time =
-      Number(c.summary?.minutes) || 0;
+      Number(
+        summary.minutes
+      ) || 0;
+
 
     const carbon =
-      Number(c.summary?.carbon_kg) || 0;
+      Number(
+        summary.carbon_kg
+      ) || 0;
 
-    if (cost < minCost) minCost = cost;
-    if (cost > maxCost) maxCost = cost;
 
-    if (time < minTime) minTime = time;
-    if (time > maxTime) maxTime = time;
+    minCost =
+      Math.min(
+        minCost,
+        cost
+      );
 
-    if (carbon < minCarbon) minCarbon = carbon;
-    if (carbon > maxCarbon) maxCarbon = carbon;
+    maxCost =
+      Math.max(
+        maxCost,
+        cost
+      );
+
+
+    minTime =
+      Math.min(
+        minTime,
+        time
+      );
+
+    maxTime =
+      Math.max(
+        maxTime,
+        time
+      );
+
+
+    minCarbon =
+      Math.min(
+        minCarbon,
+        carbon
+      );
+
+    maxCarbon =
+      Math.max(
+        maxCarbon,
+        carbon
+      );
+
   }
 
-  // ----------------------------------------------------------
-  // Fallback bounds
-  // ----------------------------------------------------------
+
+  // ==========================================================
+  // EXTERNAL CONSTRAINT BOUNDS
+  // ==========================================================
 
   const budgetCents =
-    Number(bounds?.budget_cents) > 0
-      ? Number(bounds.budget_cents)
+    Number(
+      bounds?.budget_cents
+    ) > 0
+
+      ? Number(
+          bounds.budget_cents
+        )
+
       : maxCost;
 
+
   const timeLimit =
-    Number(bounds?.time_limit_minutes) > 0
-      ? Number(bounds.time_limit_minutes)
+    Number(
+      bounds?.time_limit_minutes
+    ) > 0
+
+      ? Number(
+          bounds.time_limit_minutes
+        )
+
       : maxTime;
 
+
   const carbonCap =
-    Number(bounds?.carbon_cap_kg) > 0
-      ? Number(bounds.carbon_cap_kg)
+    Number(
+      bounds?.carbon_cap_kg
+    ) > 0
+
+      ? Number(
+          bounds.carbon_cap_kg
+        )
+
       : maxCarbon;
 
-  // ----------------------------------------------------------
-  // Score every candidate
-  // ----------------------------------------------------------
 
-  return candidates
-    .map(candidate => {
-      const summary =
-        candidate.summary || {};
+  // ==========================================================
+  // SCORE EACH CANDIDATE
+  // ==========================================================
 
-      const cost =
-        Number(summary.cost_cents) || 0;
+  const scored =
+    candidates.map(
+      candidate => {
 
-      const time =
-        Number(summary.minutes) || 0;
+        const summary =
+          candidate.summary || {};
 
-      const carbon =
-        Number(summary.carbon_kg) || 0;
 
-      // ------------------------------------------------------
-      // Cost normalization
-      // ------------------------------------------------------
+        const cost =
+          Number(
+            summary.cost_cents
+          ) || 0;
 
-      let normCost = 0;
 
-      if (maxCost > minCost) {
+        const time =
+          Number(
+            summary.minutes
+          ) || 0;
+
+
+        const carbon =
+          Number(
+            summary.carbon_kg
+          ) || 0;
+
+
+        // ====================================================
+        // COST NORMALIZATION
+        // ====================================================
+
+        let normCost = 0;
+
+        if (
+          maxCost >
+          minCost
+        ) {
+
+          normCost =
+            (
+              cost -
+              minCost
+            ) /
+            (
+              maxCost -
+              minCost
+            );
+
+        }
+        else if (
+          budgetCents > 0
+        ) {
+
+          normCost =
+            cost /
+            budgetCents;
+
+        }
+
+
+        // ====================================================
+        // TIME NORMALIZATION
+        // ====================================================
+
+        let normTime = 0;
+
+        if (
+          maxTime >
+          minTime
+        ) {
+
+          normTime =
+            (
+              time -
+              minTime
+            ) /
+            (
+              maxTime -
+              minTime
+            );
+
+        }
+        else if (
+          timeLimit > 0
+        ) {
+
+          normTime =
+            time /
+            timeLimit;
+
+        }
+
+
+        // ====================================================
+        // CARBON NORMALIZATION
+        // ====================================================
+
+        let normCarbon = 0;
+
+        if (
+          maxCarbon >
+          minCarbon
+        ) {
+
+          normCarbon =
+            (
+              carbon -
+              minCarbon
+            ) /
+            (
+              maxCarbon -
+              minCarbon
+            );
+
+        }
+        else if (
+          carbonCap > 0
+        ) {
+
+          normCarbon =
+            carbon /
+            carbonCap;
+
+        }
+
+
+        // ====================================================
+        // CLAMP NORMALIZED VALUES
+        // ====================================================
+
         normCost =
-          (cost - minCost) /
-          (maxCost - minCost);
-      } else if (budgetCents > 0) {
-        normCost =
-          cost / budgetCents;
-      }
+          clamp(
+            normCost,
+            0,
+            1
+          );
 
-      // ------------------------------------------------------
-      // Time normalization
-      // ------------------------------------------------------
-
-      let normTime = 0;
-
-      if (maxTime > minTime) {
         normTime =
-          (time - minTime) /
-          (maxTime - minTime);
-      } else if (timeLimit > 0) {
-        normTime =
-          time / timeLimit;
-      }
+          clamp(
+            normTime,
+            0,
+            1
+          );
 
-      // ------------------------------------------------------
-      // Carbon normalization
-      // ------------------------------------------------------
-
-      let normCarbon = 0;
-
-      if (maxCarbon > minCarbon) {
         normCarbon =
-          (carbon - minCarbon) /
-          (maxCarbon - minCarbon);
-      } else if (carbonCap > 0) {
-        normCarbon =
-          carbon / carbonCap;
-      }
+          clamp(
+            normCarbon,
+            0,
+            1
+          );
 
-      // ------------------------------------------------------
-      // Primary multi-objective score
-      // ------------------------------------------------------
 
-      const objectiveScore =
-        (nw.cost * normCost) +
-        (nw.time * normTime) +
-        (nw.carbon * normCarbon);
+        // ====================================================
+        // PRIMARY OBJECTIVE
+        // ====================================================
+        //
+        // THIS IS THE MOST IMPORTANT PART.
+        //
+        // User weights directly control this score.
+        //
+        // Example:
+        //
+        // Cost    0.80
+        // Time    0.10
+        // Carbon  0.10
+        //
+        // Cost dominates.
+        //
+        // Carbon  0.80
+        // Cost    0.10
+        // Time    0.10
+        //
+        // Carbon dominates.
+        // ====================================================
 
-      // ------------------------------------------------------
-      // Secondary itinerary-quality adjustment
-      // ------------------------------------------------------
+        const objectiveScore =
+          (
+            nw.cost *
+            normCost
+          ) +
+          (
+            nw.time *
+            normTime
+          ) +
+          (
+            nw.carbon *
+            normCarbon
+          );
 
-      const baseRichnessPenalty =
-        calculateRichnessPenalty(
-          candidate,
-          {
-            time_limit_minutes: timeLimit
-          }
-        );
 
-      // Generic day planning should favor a useful, well-utilized
-      // itinerary more strongly than a normal route-optimization query.
-      // This remains bounded and never overrides feasibility constraints.
-      const richnessMultiplier =
-        planningIntent === 'day_plan'
-          ? 4
-          : 1;
+        // ====================================================
+        // SECONDARY RICHNESS
+        // ====================================================
+        //
+        // Only a very small tie-breaker.
+        //
+        // NEVER multiplied by 4.
+        // ====================================================
 
-      const richnessPenalty =
-        Math.min(
-          0.30,
-          baseRichnessPenalty * richnessMultiplier
-        );
+        const baseRichnessPenalty =
+          calculateRichnessPenalty(
+            candidate,
+            {
+              time_limit_minutes:
+                timeLimit
+            }
+          );
 
-      const score =
-        objectiveScore +
-        richnessPenalty;
 
-      return {
-        ...candidate,
+        /*
+         * Day plans receive the same small richness term.
+         *
+         * We deliberately do NOT make it 4x larger.
+         *
+         * This ensures:
+         *
+         *     user weights > richness
+         */
 
-        normalized_metrics: {
-          norm_cost:
-            Number(normCost.toFixed(4)),
+        const richnessPenalty =
+          planningIntent === 'day_plan'
+            ? baseRichnessPenalty
+            : baseRichnessPenalty * 0.5;
 
-          norm_time:
-            Number(normTime.toFixed(4)),
 
-          norm_carbon:
-            Number(normCarbon.toFixed(4)),
+        // ====================================================
+        // FINAL SCORE
+        // ====================================================
 
-          itinerary_utilization:
+        const score =
+          objectiveScore +
+          richnessPenalty;
+
+
+        // ====================================================
+        // RETURN SCORED CANDIDATE
+        // ====================================================
+
+        return {
+
+          ...candidate,
+
+          normalized_metrics: {
+
+            norm_cost:
+              Number(
+                normCost.toFixed(4)
+              ),
+
+            norm_time:
+              Number(
+                normTime.toFixed(4)
+              ),
+
+            norm_carbon:
+              Number(
+                normCarbon.toFixed(4)
+              ),
+
+            itinerary_utilization:
+              Number(
+                (
+                  timeLimit > 0
+                    ? clamp(
+                        time /
+                        timeLimit,
+                        0,
+                        1
+                      )
+                    : 0
+                ).toFixed(4)
+              ),
+
+            richness_penalty:
+              Number(
+                richnessPenalty.toFixed(4)
+              )
+
+          },
+
+          score:
             Number(
-              (
-                timeLimit > 0
-                  ? clamp(time / timeLimit, 0, 1)
-                  : 0
-              ).toFixed(4)
+              score.toFixed(6)
             ),
 
-          richness_penalty:
-            Number(
-              richnessPenalty.toFixed(4)
-            )
-        },
+          weights: {
 
-        score:
-          Number(score.toFixed(6)),
+            cost:
+              Number(
+                nw.cost.toFixed(4)
+              ),
 
-        weights: {
-          cost:
-            Number(nw.cost.toFixed(4)),
+            time:
+              Number(
+                nw.time.toFixed(4)
+              ),
 
-          time:
-            Number(nw.time.toFixed(4)),
+            carbon:
+              Number(
+                nw.carbon.toFixed(4)
+              )
 
-          carbon:
-            Number(nw.carbon.toFixed(4))
-        }
-      };
-    })
-    .sort((a, b) => a.score - b.score);
+          }
+
+        };
+
+      }
+    );
+
+
+  // ==========================================================
+  // SORT
+  // ==========================================================
+
+  scored.sort(
+    (a, b) => {
+
+      /*
+       * Primary score comparison.
+       */
+      const scoreDifference =
+        a.score -
+        b.score;
+
+
+      if (
+        Math.abs(
+          scoreDifference
+        ) > 0.000001
+      ) {
+
+        return scoreDifference;
+
+      }
+
+
+      /*
+       * If scores are effectively equal,
+       * prefer better itinerary utilization.
+       */
+      const utilizationA =
+        Number(
+          a.normalized_metrics
+            ?.itinerary_utilization
+        ) || 0;
+
+
+      const utilizationB =
+        Number(
+          b.normalized_metrics
+            ?.itinerary_utilization
+        ) || 0;
+
+
+      if (
+        utilizationA !==
+        utilizationB
+      ) {
+
+        return (
+          utilizationB -
+          utilizationA
+        );
+
+      }
+
+
+      /*
+       * Final deterministic tie-breaker:
+       * fewer minutes.
+       */
+      const timeA =
+        Number(
+          a.summary?.minutes
+        ) || 0;
+
+
+      const timeB =
+        Number(
+          b.summary?.minutes
+        ) || 0;
+
+
+      return (
+        timeA -
+        timeB
+      );
+
+    }
+  );
+
+
+  return scored;
+
 }
 
+
+/**
+ * ============================================================
+ * EXPORTS
+ * ============================================================
+ */
+
 module.exports = {
+
   normalizeWeights,
+
   scoreCandidates
+
 };
-
-
